@@ -1,6 +1,7 @@
 ---
 name: postmortem
 description: Write a blameless incident postmortem once the incident is over and the fix is in. Reconstructs a timestamped timeline from evidence, separates what was true from what responders believed, reports contributing factors rather than one root cause, and produces action items that are each owned, dated and falsifiable. Use when the job left is working out what happened and what changes so it does not happen the same way twice.
+disable-model-invocation: true
 ---
 
 # postmortem
@@ -112,10 +113,12 @@ open, and saying so is better than a document that reads complete and is not.
 
 The set is tested for sufficiency and for necessity, in that order. Sufficiency: walk the
 timeline and check that every entry, including the absences, is accounted for by something
-in the set. Necessity: remove one factor and ask whether the incident still happens - if it
-does, that factor is context worth writing down, not a contributing factor, and the
-distinction stops a list of everything imperfect from crowding out the few things that
-mattered.
+in the set. Necessity: remove one factor and ask whether the incident still happens the
+same way, with the same impact and the same duration - if it does, that factor is context
+worth writing down, not a contributing factor, and the distinction stops a list of
+everything imperfect from crowding out the few things that mattered. A factor that only
+moves a clock stays in: removing the missing alert leaves the fault happening and cuts the
+detection time, which is the change the set exists to find.
 
 ### When to stop asking why
 
@@ -123,15 +126,17 @@ Ask why of each factor and keep asking while the answer names a mechanism or a d
 this organisation controls. Stop at the first answer that does not, and record the last
 controllable answer as the factor.
 
-Two answers fail that test and both are stopping points. One names a person's disposition -
-careless, inexperienced, rushing - which is the blame failure arriving under a different
+One answer fails that test without being a stopping point. It names a person's disposition
+- careless, inexperienced, rushing - which is the blame failure arriving under a different
 name; when a why lands there, the chain went through a human action without explaining it,
-so go back one step and explain it. The other names a condition outside this
-organisation's reach - a provider's behaviour, physics, a third party's release schedule.
-That is a real boundary, and what is controllable is the response to it: the factor becomes
-the missing timeout, the absent fallback, the unowned dependency.
+so the move is to go back one step and explain the action, not to stop.
 
-The other stopping point is repetition. When the next why returns an answer already
+Two answers are stopping points. The first names a condition outside this organisation's
+reach - a provider's behaviour, physics, a third party's release schedule. That is a real
+boundary, and what is controllable is the response to it: the factor becomes the missing
+timeout, the absent fallback, the unowned dependency.
+
+The second is repetition. When the next why returns an answer already
 recorded against another factor, the chains have converged and the shared answer is the
 factor both of them reduce to. Stop there and say so, because a convergence is the most
 valuable thing this section produces: it is one change that closes two paths.
