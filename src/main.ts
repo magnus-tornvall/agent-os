@@ -1,247 +1,341 @@
-/**
- * agentflow — drive one GitHub issue to a review-ready pull request in a single
- * unattended run.
- *
- *   agentflow <issue-number>
- *
- * The repository being driven is the one containing the invocation directory,
- * found with `git rev-parse --show-toplevel`. It supplies its own prompts,
- * declares what is copied into the worktree, and may set the model, effort,
- * iteration count and completion signals of each phase, through an
- * `agentflow.toml` at its root. Only the prompt path of each phase has no
- * default, so a repository without that file cannot be driven.
- *
- * claim -> implement -> pull request -> review -> fix -> conform.
- *
- * Two invariants hold the shape:
- *   - Issue claim, issue validation, pull request creation and pushes happen
- *     here. Comments are the exception: the reviewing agent posts its findings
- *     itself and the fix phase reads them back through a prompt expansion, and
- *     the conforming agent posts its scope judgement itself.
- *   - Each phase is a fresh agent. The reviewer has no memory of writing the
- *     code under review.
- *
- * Nothing resumes this. One invocation performs the whole sequence and exits.
- */
-
 import { createWorktree } from "@ai-hero/sandcastle";
+import type { Worktree } from "@ai-hero/sandcastle";
 import { join } from "node:path";
-import { loadConfig } from "./config.ts";
-import { forge } from "./github.ts";
-import { runPhase } from "./phases.ts";
+import { loadConfig, type Config } from "./config.ts";
+import { forge, type Issue, type PullRequest } from "./github.ts";
+import { runPhase, type PhaseResult } from "./phases.ts";
 import { sh, succeeds } from "./shell.ts";
 
-async function main(): Promise<string> {
-  const issueNumber = Number(process.argv[2]);
+type Forge = ReturnType<typeof forge>;
+
+/** What the run reports, and what its exit code is read off. */
+type Outcome =
+  | "no-commits"
+  | "clean-review"
+  | "fixed"
+  | "conform-inconclusive"
+  | "review-inconclusive";
+
+/** What every phase shares, assembled once the worktree they run in exists. */
+type Run = {
+  readonly gh: Forge;
+  readonly config: Config;
+  readonly issue: Issue;
+  readonly branch: string;
+  readonly baseBranch: string;
+  readonly worktree: Worktree;
+  readonly logDir: string;
+  readonly runId: string;
+};
+
+function readIssueNumber(argv: readonly string[]): number {
+  const issueNumber = Number(argv[2]);
   if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
     throw new Error("usage: agentflow <issue-number>");
   }
+  return issueNumber;
+}
 
-  const repoRoot = await sh(
-    "git",
-    ["rev-parse", "--show-toplevel"],
-    process.cwd(),
-  ).catch(() => {
-    throw new Error(`${process.cwd()} is not inside a git repository`);
+async function findRepositoryRoot(cwd: string): Promise<string> {
+  return sh("git", ["rev-parse", "--show-toplevel"], cwd).catch(() => {
+    throw new Error(`${cwd} is not inside a git repository`);
   });
+}
 
-  const git = (args: string[], cwd: string = repoRoot) => sh("git", args, cwd);
-  const gh = forge(repoRoot);
+async function currentBranch(repoRoot: string): Promise<string> {
+  return sh("git", ["rev-parse", "--abbrev-ref", "HEAD"], repoRoot);
+}
 
-  const config = await loadConfig(repoRoot);
-  const branch = `agent/issue-${issueNumber}`;
-  const baseBranch = await git(["rev-parse", "--abbrev-ref", "HEAD"]);
+function newRunId(issueNumber: number): string {
+  return `issue-${issueNumber}-${new Date().toISOString().replaceAll(/[:.]/g, "-")}`;
+}
 
-  // -------------------------------------------------------------------------
-  // refusals — all of them before anything is mutated
-  // -------------------------------------------------------------------------
-
-  /** gh pr create fails late and confusingly when the base is local-only. */
-  const baseOnOrigin = await succeeds(
+/** gh pr create fails late and confusingly when the base is local-only. */
+async function refuseUnlessBaseIsOnOrigin(
+  repoRoot: string,
+  baseBranch: string,
+): Promise<void> {
+  const onOrigin = await succeeds(
     "git",
     ["ls-remote", "--exit-code", "--heads", "origin", baseBranch],
     repoRoot,
   );
-  if (!baseOnOrigin) {
+  if (!onOrigin) {
     throw new Error(
       `base branch "${baseBranch}" is not on origin; push it before running`,
     );
   }
+}
 
-  const branchIsLocal = await succeeds(
+async function refuseIfBranchExistsLocally(
+  repoRoot: string,
+  branch: string,
+): Promise<void> {
+  const exists = await succeeds(
     "git",
     ["rev-parse", "--verify", `refs/heads/${branch}`],
     repoRoot,
   );
-  if (branchIsLocal) {
+  if (exists) {
     throw new Error(
       `branch "${branch}" already exists locally; delete it and run again`,
     );
   }
+}
 
-  const branchIsRemote = await succeeds(
+async function refuseIfBranchExistsOnOrigin(
+  repoRoot: string,
+  branch: string,
+): Promise<void> {
+  const exists = await succeeds(
     "git",
     ["ls-remote", "--exit-code", "--heads", "origin", branch],
     repoRoot,
   );
-  if (branchIsRemote) {
+  if (exists) {
     throw new Error(
       `branch "${branch}" already exists on origin; delete it and run again`,
     );
   }
+}
 
+async function refuseIfPullRequestIsOpen(
+  gh: Forge,
+  branch: string,
+): Promise<void> {
   const existingPr = await gh.openPullRequestFor(branch);
   if (existingPr !== undefined) {
     throw new Error(`pull request #${existingPr} is already open for "${branch}"`);
   }
+}
 
-  const issue = await gh.readIssue(issueNumber);
+function refuseUnlessIssueIsOpen(issue: Issue): void {
   if (issue.state !== "OPEN") {
     throw new Error(
-      `issue #${issueNumber} is ${issue.state.toLowerCase()}, not open`,
+      `issue #${issue.number} is ${issue.state.toLowerCase()}, not open`,
     );
   }
+}
 
+async function refuseUnlessIssueIsOursToClaim(
+  gh: Forge,
+  issue: Issue,
+): Promise<void> {
   const viewer = await gh.viewerLogin();
   const otherAssignees = issue.assignees
     .map((assignee) => assignee.login)
     .filter((login) => login !== viewer);
   if (otherAssignees.length > 0) {
     throw new Error(
-      `issue #${issueNumber} is assigned to ${otherAssignees.join(", ")}, not to ${viewer}`,
+      `issue #${issue.number} is assigned to ${otherAssignees.join(", ")}, not to ${viewer}`,
     );
   }
+}
 
-  // -------------------------------------------------------------------------
-  // the run
-  // -------------------------------------------------------------------------
+function announceRun(args: {
+  readonly repoRoot: string;
+  readonly branch: string;
+  readonly baseBranch: string;
+  readonly issue: Issue;
+}): void {
+  console.log(`issue #${args.issue.number}: ${args.issue.title}`);
+  console.log(`repository ${args.repoRoot}`);
+  console.log(`base ${args.baseBranch}, branch ${args.branch}`);
+}
 
-  const runId = `issue-${issueNumber}-${new Date().toISOString().replaceAll(/[:.]/g, "-")}`;
-  const logDir = join(repoRoot, ".sandcastle", "logs");
-
-  console.log(`issue #${issue.number}: ${issue.title}`);
-  console.log(`repository ${repoRoot}`);
-  console.log(`base ${baseBranch}, branch ${branch}`);
-
+async function claimIssue(gh: Forge, issueNumber: number): Promise<void> {
   await gh.claimIssue(issueNumber);
   console.log("claimed");
+}
 
+async function openWorktree(args: {
+  readonly repoRoot: string;
+  readonly branch: string;
+  readonly baseBranch: string;
+  readonly copyToWorktree: string[];
+}): Promise<Worktree> {
   const worktree = await createWorktree({
-    cwd: repoRoot,
-    branchStrategy: { type: "branch", branch, baseBranch },
-    copyToWorktree: config.copyToWorktree,
+    cwd: args.repoRoot,
+    branchStrategy: {
+      type: "branch",
+      branch: args.branch,
+      baseBranch: args.baseBranch,
+    },
+    copyToWorktree: args.copyToWorktree,
   });
   console.log(`worktree ${worktree.worktreePath}`);
+  return worktree;
+}
 
-  let outcome = "failed";
+async function closeWorktree(worktree: Worktree): Promise<void> {
+  const { preservedWorktreePath } = await worktree.close();
+  if (preservedWorktreePath !== undefined) {
+    console.log(`worktree preserved (dirty): ${preservedWorktreePath}`);
+  }
+}
+
+async function implementIssue(run: Run): Promise<PhaseResult> {
+  return runPhase({
+    name: "implement",
+    phase: run.config.phases.implement,
+    worktree: run.worktree,
+    promptArgs: {
+      ISSUE_NUMBER: run.issue.number,
+      ISSUE_TITLE: run.issue.title,
+      ISSUE_BODY: run.issue.body,
+      ISSUE_URL: run.issue.url,
+    },
+    logDir: run.logDir,
+    runId: run.runId,
+  });
+}
+
+async function openPullRequest(run: Run): Promise<PullRequest> {
+  await sh("git", ["push", "-u", "origin", run.branch], run.worktree.worktreePath);
+  const pr = await run.gh.createPullRequest({
+    branch: run.branch,
+    baseBranch: run.baseBranch,
+    issue: run.issue,
+  });
+  console.log(`pull request #${pr.number} ${pr.url}`);
+  return pr;
+}
+
+/** What a phase judging an open pull request against its issue needs to read. */
+function judgementPromptArgs(
+  run: Run,
+  pr: PullRequest,
+): Record<string, string | number> {
+  return {
+    PR_NUMBER: pr.number,
+    PR_URL: pr.url,
+    BASE_BRANCH: run.baseBranch,
+    ISSUE_NUMBER: run.issue.number,
+    ISSUE_TITLE: run.issue.title,
+    ISSUE_BODY: run.issue.body,
+  };
+}
+
+/** The judgement is informational, so only a failure to post it — never what it
+ *  found — reaches the outcome. */
+async function judgeScope(run: Run, pr: PullRequest): Promise<boolean> {
+  const conformed = await runPhase({
+    name: "conform",
+    phase: run.config.phases.conform,
+    worktree: run.worktree,
+    promptArgs: judgementPromptArgs(run, pr),
+    logDir: run.logDir,
+    runId: run.runId,
+  });
+  if (conformed.completionSignal !== undefined) {
+    return true;
+  }
+  console.log(
+    `conform phase ended without a completion signal; whether a scope ` +
+      `judgement reached pull request #${pr.number} is unknown`,
+  );
+  return false;
+}
+
+/** Each phase here is a fresh agent: the reviewer has no memory of writing the
+ *  code under review, and the fix phase is given only the pull request, because
+ *  the reviewer posted its findings there itself. */
+async function reviewAndFix(run: Run, pr: PullRequest): Promise<Outcome> {
+  const review = run.config.phases.review;
+  const reviewed = await runPhase({
+    name: "review",
+    phase: review,
+    worktree: run.worktree,
+    promptArgs: judgementPromptArgs(run, pr),
+    logDir: run.logDir,
+    runId: run.runId,
+  });
+
+  if (reviewed.completionSignal === review.cleanSignal) {
+    return (await judgeScope(run, pr)) ? "clean-review" : "conform-inconclusive";
+  }
+
+  if (reviewed.completionSignal === review.findingsSignal) {
+    const fixed = await runPhase({
+      name: "fix",
+      phase: run.config.phases.fix,
+      worktree: run.worktree,
+      promptArgs: {
+        PR_NUMBER: pr.number,
+        PR_URL: pr.url,
+        BASE_BRANCH: run.baseBranch,
+      },
+      logDir: run.logDir,
+      runId: run.runId,
+    });
+
+    if (fixed.commits.length > 0) {
+      await sh("git", ["push"], run.worktree.worktreePath);
+    }
+    return (await judgeScope(run, pr)) ? "fixed" : "conform-inconclusive";
+  }
+
+  /** Neither signal fired, so whether findings were posted is unknown, and a fix
+   *  phase run on that guess is worse than none. */
+  console.log(
+    `review phase ended without a completion signal; ` +
+      `pull request #${pr.number} is open and needs a human`,
+  );
+  return "review-inconclusive";
+}
+
+async function main(): Promise<Outcome> {
+  const issueNumber = readIssueNumber(process.argv);
+  const repoRoot = await findRepositoryRoot(process.cwd());
+  const config = await loadConfig(repoRoot);
+  const gh = forge(repoRoot);
+  const branch = `agent/issue-${issueNumber}`;
+  const baseBranch = await currentBranch(repoRoot);
+
+  await refuseUnlessBaseIsOnOrigin(repoRoot, baseBranch);
+  await refuseIfBranchExistsLocally(repoRoot, branch);
+  await refuseIfBranchExistsOnOrigin(repoRoot, branch);
+  await refuseIfPullRequestIsOpen(gh, branch);
+  const issue = await gh.readIssue(issueNumber);
+  refuseUnlessIssueIsOpen(issue);
+  await refuseUnlessIssueIsOursToClaim(gh, issue);
+
+  const runId = newRunId(issueNumber);
+
+  announceRun({ repoRoot, branch, baseBranch, issue });
+  await claimIssue(gh, issueNumber);
+
+  const worktree = await openWorktree({
+    repoRoot,
+    branch,
+    baseBranch,
+    copyToWorktree: config.copyToWorktree,
+  });
+  const run: Run = {
+    gh,
+    config,
+    issue,
+    branch,
+    baseBranch,
+    worktree,
+    runId,
+    logDir: join(repoRoot, ".sandcastle", "logs"),
+  };
 
   try {
-    const implemented = await runPhase({
-      name: "implement",
-      phase: config.phases.implement,
-      worktree,
-      promptArgs: {
-        ISSUE_NUMBER: issue.number,
-        ISSUE_TITLE: issue.title,
-        ISSUE_BODY: issue.body,
-        ISSUE_URL: issue.url,
-      },
-      logDir,
-      runId,
-    });
+    const implemented = await implementIssue(run);
 
     // The gate, and the whole gate.
     if (implemented.commits.length === 0) {
-      outcome = "no-commits";
       console.log("implement phase produced no commits — no pull request opened");
-    } else {
-      await git(["push", "-u", "origin", branch], worktree.worktreePath);
-      const pr = await gh.createPullRequest({ branch, baseBranch, issue });
-      console.log(`pull request #${pr.number} ${pr.url}`);
-
-      const review = config.phases.review;
-      const reviewed = await runPhase({
-        name: "review",
-        phase: review,
-        worktree,
-        promptArgs: {
-          PR_NUMBER: pr.number,
-          PR_URL: pr.url,
-          BASE_BRANCH: baseBranch,
-          ISSUE_NUMBER: issue.number,
-          ISSUE_TITLE: issue.title,
-          ISSUE_BODY: issue.body,
-        },
-        logDir,
-        runId,
-      });
-
-      /** The judgement is informational, so only a failure to post it — never
-       *  what it found — reaches the outcome. */
-      const conform = async (): Promise<boolean> => {
-        const conformed = await runPhase({
-          name: "conform",
-          phase: config.phases.conform,
-          worktree,
-          promptArgs: {
-            PR_NUMBER: pr.number,
-            PR_URL: pr.url,
-            BASE_BRANCH: baseBranch,
-            ISSUE_NUMBER: issue.number,
-            ISSUE_TITLE: issue.title,
-            ISSUE_BODY: issue.body,
-          },
-          logDir,
-          runId,
-        });
-        if (conformed.completionSignal !== undefined) {
-          return true;
-        }
-        console.log(
-          `conform phase ended without a completion signal; whether a scope ` +
-            `judgement reached pull request #${pr.number} is unknown`,
-        );
-        return false;
-      };
-
-      if (reviewed.completionSignal === review.cleanSignal) {
-        outcome = (await conform()) ? "clean-review" : "conform-inconclusive";
-      } else if (reviewed.completionSignal === review.findingsSignal) {
-        const fixed = await runPhase({
-          name: "fix",
-          phase: config.phases.fix,
-          worktree,
-          promptArgs: {
-            PR_NUMBER: pr.number,
-            PR_URL: pr.url,
-            BASE_BRANCH: baseBranch,
-          },
-          logDir,
-          runId,
-        });
-
-        if (fixed.commits.length > 0) {
-          await git(["push"], worktree.worktreePath);
-        }
-        outcome = (await conform()) ? "fixed" : "conform-inconclusive";
-      } else {
-        /** Neither signal fired, so whether findings were posted is unknown,
-         *  and a fix phase run on that guess is worse than none. */
-        outcome = "review-inconclusive";
-        console.log(
-          `review phase ended without a completion signal; ` +
-            `pull request #${pr.number} is open and needs a human`,
-        );
-      }
+      return "no-commits";
     }
+
+    const pr = await openPullRequest(run);
+    return await reviewAndFix(run, pr);
   } finally {
-    const { preservedWorktreePath } = await worktree.close();
-    if (preservedWorktreePath !== undefined) {
-      console.log(`worktree preserved (dirty): ${preservedWorktreePath}`);
-    }
+    await closeWorktree(worktree);
   }
-
-  return outcome;
 }
 
 const outcome = await main().catch((error: unknown) => {
