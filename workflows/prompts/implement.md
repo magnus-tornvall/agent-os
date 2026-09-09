@@ -1,7 +1,7 @@
 # Implement one issue
 
-You are running unattended in a git worktree of the `agent-tools` repository, on
-branch `{{SOURCE_BRANCH}}`. Nothing else is running. Nobody will answer a
+You are running unattended in a git worktree of the repository you were started
+in, on branch `{{SOURCE_BRANCH}}`. Nothing else is running. Nobody will answer a
 question, so do not ask one — decide, and record the decision in the commit
 message.
 

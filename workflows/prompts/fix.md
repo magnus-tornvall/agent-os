@@ -1,16 +1,18 @@
 # Apply review findings
 
-You are running unattended in a git worktree of the `agent-tools` repository, on
-branch `{{SOURCE_BRANCH}}`. The findings below were left as comments on pull
-request #{{PR_NUMBER}} and read back from GitHub for you. Nobody will answer a
-question, so decide and say why in the commit message.
+You are running unattended in a git worktree of the repository you were started
+in, on branch `{{SOURCE_BRANCH}}`. The findings below were left as comments on
+pull request #{{PR_NUMBER}} by a reviewing agent and are reproduced here as they
+stand on GitHub. Nobody will answer a question, so decide and say why in the
+commit message.
 
-**Do not touch GitHub.** No `gh`, no comment, no reply, no resolve. The process
-that started you owns every GitHub call. Do not push; commit locally and stop.
+**Do not touch GitHub.** No `gh`, no comment, no reply, no resolve. The findings
+are already in front of you and the process that started you owns the push. Do
+not push; commit locally and stop.
 
-## The findings, as they were read back from the pull request
+## The findings, as they stand on the pull request
 
-{{FINDINGS}}
+!`gh pr view {{PR_NUMBER}} --json comments --jq '.comments[] | "### @\(.author.login)\n\n\(.body)\n"'`
 
 ## What to do
 

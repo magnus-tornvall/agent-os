@@ -1,0 +1,8 @@
+# agentflow, driving this repository. Prompt paths resolve against this file.
+
+copyToWorktree = []
+
+[prompts]
+implement = "workflows/prompts/implement.md"
+review = "workflows/prompts/review.md"
+fix = "workflows/prompts/fix.md"

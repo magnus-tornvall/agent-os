@@ -116,6 +116,17 @@ non_goals:
 
 # POC: sandcastle workflow
 
+**Superseded where it contradicts `agentflow`.** The POC ran, and the stack it was
+built to evaluate is now the `agentflow` binary. What this document still records
+correctly is the one-shot lifetime, the fresh reviewer, `noSandbox()`, GitHub-only,
+"commits exist" as the gate, and write fencing as a boundary. What it records that
+is no longer true: the driver as a single `.ts` file run by node with no build step;
+the driver locating the repository from its own file position; the driver owning
+*every* forge call, since the reviewing agent now posts its own findings; the
+findings file, the comment read-back and the run record, all of which are gone; and
+the prompts naming this repository, since one prompt set is now shared across
+repositories.
+
 ## What each decision ruled out
 
 **One-shot lifetime** killed the `Stage` union, `.sandcastle/tasks/*.json`, `loadTask`/`saveTask`,

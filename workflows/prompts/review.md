@@ -1,14 +1,15 @@
 # Review a change you did not write
 
-You are running unattended in a git worktree of the `agent-tools` repository, on
-branch `{{SOURCE_BRANCH}}`. A different agent wrote the change under review and
-you have none of its context — which is the point. You know what was asked and
-you can see what landed. Judge the second against the first.
+You are running unattended in a git worktree of the repository you were started
+in, on branch `{{SOURCE_BRANCH}}`. A different agent wrote the change under
+review and you have none of its context — which is the point. You know what was
+asked and you can see what landed. Judge the second against the first.
 
 The change is open as pull request #{{PR_NUMBER}} against `{{BASE_BRANCH}}`.
-**Do not touch GitHub.** No `gh`, no comment, no review, no approval. The process
-that started you posts your findings itself; a comment from you would be posted
-twice. Do not commit and do not push — you are reading, not fixing.
+
+You post your own findings, and that is the only GitHub call you make. No
+review, no approval, no label, no issue edit. Do not commit and do not push —
+you are reading, not fixing.
 
 ## What was asked
 
@@ -54,29 +55,44 @@ better one than a padded list — every finding you write becomes a public comme
 on a public repository and then becomes work for the next agent, so a weak
 finding costs twice. Rank the strongest first.
 
-## How to report
+## How to post
 
-Write your findings as JSON to `{{FINDINGS_PATH}}`, relative to the repository
-root, with exactly this shape:
+One comment per finding, strongest first, each posted with:
 
-    {
-      "findings": [
-        {
-          "title": "one line, imperative, what to change",
-          "file": "path/relative/to/repo/root",
-          "line": 12,
-          "detail": "What is wrong, the evidence for it, and what correct looks like. Cite the file that establishes the convention when the finding rests on one. Two to five sentences."
-        }
-      ]
-    }
+    gh pr comment {{PR_NUMBER}} --body '<the comment>'
 
-`file` and `line` are optional and should be omitted rather than guessed. No
-findings is `{"findings": []}`. The file must contain nothing but the JSON
-object — no fences, no prose around it. It is parsed, not read.
+Every comment has exactly this shape:
 
-Write the file even when there are no findings. A missing file is a failed stage,
-not an empty review.
+    **Finding N of M — one line, imperative, what to change**
 
-When the file is written, print this exact line and nothing after it:
+    `path/relative/to/repo/root:12`
 
-REVIEW COMPLETE
+    What is wrong, the evidence for it, and what correct looks like. Cite the
+    file that establishes the convention when the finding rests on one. Two to
+    five sentences.
+
+`N` counts from 1 and `M` is the total you are posting, so the next agent can
+tell a partial set from a complete one. Drop the location line rather than
+guessing at a file or a line, and drop `:12` rather than guessing at a line in a
+file you are sure of. Nothing else goes in the comment — no summary comment, no
+preamble, no sign-off, and no second comment repeating the set.
+
+Post every finding before you print anything. A finding you decided on but did
+not post does not exist.
+
+## Finishing
+
+Print exactly one of these two lines, and nothing after it.
+
+If you found nothing and posted nothing:
+
+REVIEW CLEAN
+
+If you posted one or more findings:
+
+REVIEW FINDINGS POSTED
+
+These two lines are the only thing the process that started you reads. Printing
+neither leaves the pull request open with nobody acting on it; printing the
+wrong one either abandons your findings or sends the next agent looking for
+findings that were never posted.

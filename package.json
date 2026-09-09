@@ -2,6 +2,12 @@
   "name": "agent-tools",
   "private": true,
   "type": "module",
+  "bin": {
+    "agentflow": "./bin/agentflow"
+  },
+  "scripts": {
+    "build": "bun build --compile src/main.ts --outfile bin/agentflow"
+  },
   "dependencies": {
     "@ai-hero/sandcastle": "^0.12.0"
   }
