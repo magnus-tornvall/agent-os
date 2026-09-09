@@ -6,9 +6,14 @@
     "agentflow": "./bin/agentflow"
   },
   "scripts": {
-    "build": "bun build --compile src/main.ts --outfile bin/agentflow"
+    "build": "bun build --compile src/main.ts --outfile bin/agentflow",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-hero/sandcastle": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
   }
 }
