@@ -16,9 +16,8 @@ Not an intent, not a summary of the area, not "the auth code". Paths, in the ord
 will be touched, with the reason each one is on the list.
 
 Written down means it exists outside the head of whoever is implementing: in the plan, in
-the issue, in the commit message that lands the change. A scope nobody wrote down is one
-nobody can be held to, and every later argument about drift becomes an argument about what
-was meant.
+the issue. A scope nobody wrote down is one nobody can be held to, and every later argument
+about drift becomes an argument about what was meant.
 
 Check: point at the list. A change whose scope cannot be pointed at has none.
 
@@ -48,9 +47,9 @@ answer means it is convenience, and convenience comes out.
 
 The bar is completion: the requested change cannot be finished without the addition. Not
 that the result would be better with it, not that the addition is small, not that it is
-adjacent. A widening that clears the bar is legitimate, and one that clears it is usually
-discovered - a caller the search missed, a schema the new field needs, a helper that must
-exist for the new path to run at all.
+adjacent. A widening that clears the bar is legitimate, and one that clears it is
+discovered rather than invented - a caller the search missed, a schema the new field needs,
+a helper that must exist for the new path to run at all.
 
 Legitimate or not, it is recorded where the change is explained. Where there is somebody to
 ask, ask, and the answer is the record. Where there is nobody - an unattended run, a
