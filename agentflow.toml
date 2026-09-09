@@ -1,8 +1,16 @@
 # agentflow, driving this repository. Prompt paths resolve against this file.
+# Every key but `prompt` is optional and falls back to a value the binary carries.
 
 copyToWorktree = []
 
-[prompts]
-implement = "workflows/prompts/implement.md"
-review = "workflows/prompts/review.md"
-fix = "workflows/prompts/fix.md"
+[phases.implement]
+prompt = "workflows/prompts/implement.md"
+maxIterations = 1
+
+[phases.review]
+prompt = "workflows/prompts/review.md"
+maxIterations = 1
+
+[phases.fix]
+prompt = "workflows/prompts/fix.md"
+maxIterations = 1

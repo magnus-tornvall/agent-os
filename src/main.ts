@@ -5,9 +5,11 @@
  *   agentflow <issue-number>
  *
  * The repository being driven is the one containing the invocation directory,
- * found with `git rev-parse --show-toplevel`. It supplies its own prompts and
- * declares what is copied into the worktree, through an `agentflow.toml` at its
- * root. There are no defaults: a repository without that file cannot be driven.
+ * found with `git rev-parse --show-toplevel`. It supplies its own prompts,
+ * declares what is copied into the worktree, and may set the model, effort,
+ * iteration count and completion signals of each phase, through an
+ * `agentflow.toml` at its root. Only the prompt path of each phase has no
+ * default, so a repository without that file cannot be driven.
  *
  * claim -> implement -> pull request -> review -> fix.
  *
@@ -25,7 +27,7 @@ import { createWorktree } from "@ai-hero/sandcastle";
 import { join } from "node:path";
 import { loadConfig } from "./config.ts";
 import { forge } from "./github.ts";
-import { REVIEW_CLEAN, REVIEW_FINDINGS_POSTED, runPhase } from "./phases.ts";
+import { runPhase } from "./phases.ts";
 import { sh, succeeds } from "./shell.ts";
 
 async function main(): Promise<string> {
@@ -135,8 +137,8 @@ async function main(): Promise<string> {
   try {
     const implemented = await runPhase({
       name: "implement",
+      phase: config.phases.implement,
       worktree,
-      promptFile: config.prompts.implement,
       promptArgs: {
         ISSUE_NUMBER: issue.number,
         ISSUE_TITLE: issue.title,
@@ -156,10 +158,11 @@ async function main(): Promise<string> {
       const pr = await gh.createPullRequest({ branch, baseBranch, issue });
       console.log(`pull request #${pr.number} ${pr.url}`);
 
+      const review = config.phases.review;
       const reviewed = await runPhase({
         name: "review",
+        phase: review,
         worktree,
-        promptFile: config.prompts.review,
         promptArgs: {
           PR_NUMBER: pr.number,
           PR_URL: pr.url,
@@ -172,13 +175,13 @@ async function main(): Promise<string> {
         runId,
       });
 
-      if (reviewed.completionSignal === REVIEW_CLEAN) {
+      if (reviewed.completionSignal === review.cleanSignal) {
         outcome = "clean-review";
-      } else if (reviewed.completionSignal === REVIEW_FINDINGS_POSTED) {
+      } else if (reviewed.completionSignal === review.findingsSignal) {
         const fixed = await runPhase({
           name: "fix",
+          phase: config.phases.fix,
           worktree,
-          promptFile: config.prompts.fix,
           promptArgs: {
             PR_NUMBER: pr.number,
             PR_URL: pr.url,
