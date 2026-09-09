@@ -28,6 +28,72 @@ type Run = {
   readonly runId: string;
 };
 
+async function main(): Promise<Outcome> {
+  const issueNumber = readIssueNumber(process.argv);
+  const repoRoot = await findRepositoryRoot(process.cwd());
+  const config = await loadConfig(repoRoot);
+  const gh = forge(repoRoot);
+  const branch = `agent/issue-${issueNumber}`;
+  const baseBranch = await currentBranch(repoRoot);
+
+  await refuseUnlessBaseIsOnOrigin(repoRoot, baseBranch);
+  await refuseIfBranchExistsLocally(repoRoot, branch);
+  await refuseIfBranchExistsOnOrigin(repoRoot, branch);
+  await refuseIfPullRequestIsOpen(gh, branch);
+  const issue = await gh.readIssue(issueNumber);
+  refuseUnlessIssueIsOpen(issue);
+  await refuseUnlessIssueIsOursToClaim(gh, issue);
+
+  const runId = newRunId(issueNumber);
+
+  announceRun({ repoRoot, branch, baseBranch, issue });
+  await claimIssue(gh, issueNumber);
+
+  const worktree = await openWorktree({
+    repoRoot,
+    branch,
+    baseBranch,
+    copyToWorktree: config.copyToWorktree,
+  });
+  const run: Run = {
+    gh,
+    config,
+    issue,
+    branch,
+    baseBranch,
+    worktree,
+    runId,
+    logDir: join(repoRoot, ".sandcastle", "logs"),
+  };
+
+  try {
+    const implemented = await implementIssue(run);
+
+    // The gate, and the whole gate.
+    if (implemented.commits.length === 0) {
+      console.log("implement phase produced no commits — no pull request opened");
+      return "no-commits";
+    }
+
+    const pr = await openPullRequest(run);
+    return await reviewAndFix(run, pr);
+  } finally {
+    await closeWorktree(worktree);
+  }
+}
+
+const outcome = await main().catch((error: unknown) => {
+  console.error(
+    `agentflow: ${error instanceof Error ? error.message : String(error)}`,
+  );
+  process.exit(1);
+});
+
+console.log(`done: ${outcome}`);
+if (outcome !== "clean-review" && outcome !== "fixed") {
+  process.exitCode = 1;
+}
+
 function readIssueNumber(argv: readonly string[]): number {
   const issueNumber = Number(argv[2]);
   if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
@@ -282,70 +348,4 @@ async function reviewAndFix(run: Run, pr: PullRequest): Promise<Outcome> {
       `pull request #${pr.number} is open and needs a human`,
   );
   return "review-inconclusive";
-}
-
-async function main(): Promise<Outcome> {
-  const issueNumber = readIssueNumber(process.argv);
-  const repoRoot = await findRepositoryRoot(process.cwd());
-  const config = await loadConfig(repoRoot);
-  const gh = forge(repoRoot);
-  const branch = `agent/issue-${issueNumber}`;
-  const baseBranch = await currentBranch(repoRoot);
-
-  await refuseUnlessBaseIsOnOrigin(repoRoot, baseBranch);
-  await refuseIfBranchExistsLocally(repoRoot, branch);
-  await refuseIfBranchExistsOnOrigin(repoRoot, branch);
-  await refuseIfPullRequestIsOpen(gh, branch);
-  const issue = await gh.readIssue(issueNumber);
-  refuseUnlessIssueIsOpen(issue);
-  await refuseUnlessIssueIsOursToClaim(gh, issue);
-
-  const runId = newRunId(issueNumber);
-
-  announceRun({ repoRoot, branch, baseBranch, issue });
-  await claimIssue(gh, issueNumber);
-
-  const worktree = await openWorktree({
-    repoRoot,
-    branch,
-    baseBranch,
-    copyToWorktree: config.copyToWorktree,
-  });
-  const run: Run = {
-    gh,
-    config,
-    issue,
-    branch,
-    baseBranch,
-    worktree,
-    runId,
-    logDir: join(repoRoot, ".sandcastle", "logs"),
-  };
-
-  try {
-    const implemented = await implementIssue(run);
-
-    // The gate, and the whole gate.
-    if (implemented.commits.length === 0) {
-      console.log("implement phase produced no commits — no pull request opened");
-      return "no-commits";
-    }
-
-    const pr = await openPullRequest(run);
-    return await reviewAndFix(run, pr);
-  } finally {
-    await closeWorktree(worktree);
-  }
-}
-
-const outcome = await main().catch((error: unknown) => {
-  console.error(
-    `agentflow: ${error instanceof Error ? error.message : String(error)}`,
-  );
-  process.exit(1);
-});
-
-console.log(`done: ${outcome}`);
-if (outcome !== "clean-review" && outcome !== "fixed") {
-  process.exitCode = 1;
 }
