@@ -11,12 +11,13 @@
  * `agentflow.toml` at its root. Only the prompt path of each phase has no
  * default, so a repository without that file cannot be driven.
  *
- * claim -> implement -> pull request -> review -> fix.
+ * claim -> implement -> pull request -> review -> fix -> conform.
  *
  * Two invariants hold the shape:
  *   - Issue claim, issue validation, pull request creation and pushes happen
- *     here. Findings are the exception: the reviewing agent posts those itself,
- *     and the fix phase reads them back through a prompt expansion.
+ *     here. Comments are the exception: the reviewing agent posts its findings
+ *     itself and the fix phase reads them back through a prompt expansion, and
+ *     the conforming agent posts its scope judgement itself.
  *   - Each phase is a fresh agent. The reviewer has no memory of writing the
  *     code under review.
  *
@@ -175,8 +176,36 @@ async function main(): Promise<string> {
         runId,
       });
 
+      /** The judgement is informational, so only a failure to post it — never
+       *  what it found — reaches the outcome. */
+      const conform = async (): Promise<boolean> => {
+        const conformed = await runPhase({
+          name: "conform",
+          phase: config.phases.conform,
+          worktree,
+          promptArgs: {
+            PR_NUMBER: pr.number,
+            PR_URL: pr.url,
+            BASE_BRANCH: baseBranch,
+            ISSUE_NUMBER: issue.number,
+            ISSUE_TITLE: issue.title,
+            ISSUE_BODY: issue.body,
+          },
+          logDir,
+          runId,
+        });
+        if (conformed.completionSignal !== undefined) {
+          return true;
+        }
+        console.log(
+          `conform phase ended without a completion signal; whether a scope ` +
+            `judgement reached pull request #${pr.number} is unknown`,
+        );
+        return false;
+      };
+
       if (reviewed.completionSignal === review.cleanSignal) {
-        outcome = "clean-review";
+        outcome = (await conform()) ? "clean-review" : "conform-inconclusive";
       } else if (reviewed.completionSignal === review.findingsSignal) {
         const fixed = await runPhase({
           name: "fix",
@@ -194,7 +223,7 @@ async function main(): Promise<string> {
         if (fixed.commits.length > 0) {
           await git(["push"], worktree.worktreePath);
         }
-        outcome = "fixed";
+        outcome = (await conform()) ? "fixed" : "conform-inconclusive";
       } else {
         /** Neither signal fired, so whether findings were posted is unknown,
          *  and a fix phase run on that guess is worse than none. */

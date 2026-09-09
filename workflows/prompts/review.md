@@ -37,14 +37,11 @@ assumed it was.
 
 Something a reviewer would block on or ask to be changed:
 
-- The issue asked for something and the change does not deliver it, or delivers
-  something adjacent to it.
 - A stated constraint in the issue is violated.
 - The change contradicts a convention the repository visibly follows elsewhere,
   and you can name the file that shows the convention.
 - The content is wrong, self-contradictory, or promises behaviour it does not
   describe.
-- Something was added that the issue did not ask for.
 
 Not a finding: taste you cannot ground in the issue or in an existing file;
 restating what the change does; praise; a suggestion to add tests to a change

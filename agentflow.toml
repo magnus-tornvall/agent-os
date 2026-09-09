@@ -14,3 +14,6 @@ maxIterations = 1
 [phases.fix]
 prompt = "workflows/prompts/fix.md"
 maxIterations = 1
+
+[phases.conform]
+prompt = "workflows/prompts/conform.md"

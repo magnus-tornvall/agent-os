@@ -3,7 +3,7 @@ import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
 import type { Worktree, WorktreeRunResult } from "@ai-hero/sandcastle";
 import { join } from "node:path";
 
-export const PHASE_NAMES = ["implement", "review", "fix"] as const;
+export const PHASE_NAMES = ["implement", "review", "fix", "conform"] as const;
 
 export type PhaseName = (typeof PHASE_NAMES)[number];
 
@@ -45,6 +45,7 @@ export const PHASE_DEFAULTS: {
   readonly implement: PhaseDefaults;
   readonly review: PhaseDefaults & { readonly cleanSignal: string };
   readonly fix: PhaseDefaults;
+  readonly conform: PhaseDefaults;
 } = {
   implement: {
     model: "claude-opus-5",
@@ -64,6 +65,16 @@ export const PHASE_DEFAULTS: {
     effort: "medium",
     maxIterations: 2,
     completionSignal: "FIXES COMPLETE",
+  },
+  /** One iteration, against review's two: a second iteration runs only when the
+   *  first printed no signal, and this phase makes a single append-only comment
+   *  call, so there is no partial post to recover and a retry risks a duplicate
+   *  judgement on the pull request. */
+  conform: {
+    model: "claude-opus-5",
+    effort: "medium",
+    maxIterations: 1,
+    completionSignal: "CONFORMANCE POSTED",
   },
 };
 

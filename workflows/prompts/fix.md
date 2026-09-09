@@ -32,9 +32,9 @@ you disagree with — an unexplained non-change is indistinguishable from an
 oversight.
 
 Do not fix anything the findings did not raise. Do not reformat, do not tidy
-adjacent lines, do not improve something you noticed on the way. Scope creep here
-lands in a pull request that has already been reviewed once, where nobody is
-looking for it.
+adjacent lines, do not improve something you noticed on the way. A later agent
+judges this branch against what was asked for and lists every change nothing
+asked for, by location, in a public comment.
 
 ## Committing
 

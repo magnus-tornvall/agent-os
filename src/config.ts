@@ -34,6 +34,7 @@ export type Config = {
     readonly implement: PhaseConfig;
     readonly review: ReviewPhaseConfig;
     readonly fix: PhaseConfig;
+    readonly conform: PhaseConfig;
   };
   readonly copyToWorktree: string[];
 };
@@ -229,6 +230,7 @@ export async function loadConfig(repoRoot: string): Promise<Config> {
     implement: readPhase("implement", phaseTables, configPath, configDir),
     review: readReviewPhase(phaseTables, configPath, configDir),
     fix: readPhase("fix", phaseTables, configPath, configDir),
+    conform: readPhase("conform", phaseTables, configPath, configDir),
   };
 
   const copyDeclared = top.copyToWorktree ?? [];
