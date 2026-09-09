@@ -97,8 +97,11 @@ is declared:
   and postponing.
 
 A window missing any of the three is not a window. Say so, and either supply the missing
-part or take the delete branch instead - those are the only two moves, because the third
-is the failure mode this skill exists against.
+part or stop: the old path keeps working, unchanged, and the retirement does not land until
+whoever can name the owner, the end or the signal has done so. Deleting instead is not the
+alternative - the set is open, which is why a window was reached at all. Those are the only
+two moves, because the third - declaring the window anyway - is the failure mode this skill
+exists against.
 
 ## Before the delete lands
 
