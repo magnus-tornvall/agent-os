@@ -3,6 +3,13 @@
  *
  *   node workflows/sandcastle-poc.ts <issue-number>
  *
+ * Repo-local: the workflow drives the repository that contains it, found from
+ * this file's own location. There is no target argument, because a workflow
+ * that ships inside a repo already knows which one it is, and stack knowledge
+ * belongs in that repo's own CLAUDE.md rather than in a prompt that has to
+ * branch on which repo it was pointed at. Invocation directory decides nothing;
+ * a subdirectory works.
+ *
  * claim -> implement -> PR -> review -> post findings -> read them back -> fix -> ping.
  *
  * The point is to evaluate the sandcastle stack, so the run emits per-stage
@@ -36,9 +43,20 @@ const AGENT = claudeCode("claude-opus-5", {
   permissionMode: "bypassPermissions",
 });
 
-/** promptFile resolves against process.cwd(), not the worktree, so the driver
- *  must be invoked from the repo root and prompt paths are relative to it. */
-const PROMPT_DIR = "workflows/prompts";
+/** Two roots, both derived from this file rather than from process.cwd():
+ *
+ *   driverRoot  this file's own directory — the prompts live beside it
+ *   repoRoot    the repository being driven — git, gh, .sandcastle/, .scratch/
+ *
+ *  Asking git for the top level rather than counting "../" keeps the driver
+ *  free to sit at any depth, and fails loudly if it is ever copied somewhere
+ *  that is not a repository at all. */
+const driverRoot = import.meta.dirname;
+const repoRoot = await sh("git", ["rev-parse", "--show-toplevel"], driverRoot);
+
+/** Absolute, because promptFile resolves against process.cwd() and the driver
+ *  can be invoked from any directory inside the repo. */
+const PROMPT_DIR = join(driverRoot, "prompts");
 
 const RECORD_DIR = ".scratch";
 const RECORD_FILE = "sandcastle-poc-runs.jsonl";
@@ -101,8 +119,8 @@ async function sh(cmd: string, args: string[], cwd: string): Promise<string> {
   return stdout.trim();
 }
 
-const repoRoot = process.cwd();
-
+/** gh infers owner/name from the remote of the repo it runs in, and that repo
+ *  is this one. */
 const git = (args: string[], cwd: string = repoRoot) => sh("git", args, cwd);
 const gh = (args: string[]) => sh("gh", args, repoRoot);
 
@@ -300,6 +318,16 @@ if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
   throw new Error("usage: node workflows/sandcastle-poc.ts <issue-number>");
 }
 
+/** A missing prompt is otherwise discovered by the first wt.run(), which is
+ *  after the issue has been claimed and the worktree created. Reading them here
+ *  keeps every stage's cost of a bad path at zero. */
+for (const promptFile of ["implement.md", "review.md", "fix.md"]) {
+  const path = join(PROMPT_DIR, promptFile);
+  await readFile(path, "utf8").catch(() => {
+    throw new Error(`prompt "${path}" is missing or unreadable`);
+  });
+}
+
 const runId = `issue-${issueNumber}-${new Date().toISOString().replaceAll(/[:.]/g, "-")}`;
 const startedAt = new Date().toISOString();
 const branch = `agent/issue-${issueNumber}`;
@@ -323,12 +351,14 @@ const nameWithOwner = await gh([
 
 const issue = await readIssue(issueNumber);
 console.log(`issue #${issue.number}: ${issue.title}`);
-console.log(`base ${baseBranch}, branch ${branch}, repo ${nameWithOwner}`);
+console.log(`repo ${nameWithOwner} at ${repoRoot}`);
+console.log(`base ${baseBranch}, branch ${branch}`);
 
 await claimIssue(issueNumber);
 console.log("claimed");
 
 const worktree = await createWorktree({
+  cwd: repoRoot,
   branchStrategy: { type: "branch", branch, baseBranch },
 });
 console.log(`worktree ${worktree.worktreePath}`);
