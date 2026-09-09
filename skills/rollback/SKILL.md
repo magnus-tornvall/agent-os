@@ -22,7 +22,10 @@ One input: **is the rollback reversible?**
 - **Yes** - roll back now, before the cause is known. Not knowing why is not a reason to
   wait; the rollback is the same either way.
 - **No** - roll forward. The deploy has left state behind that going back does not undo,
-  so the incident is a state problem now and the old artifact does not fix it.
+  so the incident is a state problem now and the old artifact does not fix it. This branch
+  has a second step, and it is not conditional on anyone's read of the fix: until the
+  forward fix exists, reduce what the system is doing. See [Reduce while you roll
+  forward](#reduce-while-you-roll-forward).
 - **Unknown** - treat it as no. See [When reversibility is
   unknown](#when-reversibility-is-unknown).
 
@@ -45,8 +48,10 @@ Reversible means: deploy the previous artifact and the system is in the state it
 before, with nothing left behind that the previous artifact cannot handle.
 
 It is **not reversible** when the deploy either destroyed information that cannot be
-reconstructed, or emitted an effect across a boundary you do not control. Those two
-properties are the test. The classes below are what they look like:
+reconstructed, or left behind an effect that outlives the artifact - one that redeploying
+the previous artifact does not undo, whether because it crossed a boundary you do not
+control or because it is resident in state the old artifact can only stop adding to.
+Those two properties are the test. The classes below are what they look like:
 
 - **A migration that dropped a column or table.** The data is gone, and the old code reads
   a schema that no longer exists. Rolling back the code without the schema is not a
@@ -88,11 +93,17 @@ the diff, not an absence of memory. It is a lookup with an end, so give it minut
 name. If it is still unknown when the time is up, it is a no, and it stays a no; asking
 again later is how a bounded lookup becomes the debugging session the rule forbids.
 
-**Not reversible and no forward fix in sight is a third answer, and it is not a rollback.**
+## Reduce while you roll forward
+
+The No branch's second step. It applies whenever the answer is no - including the unknown
+treated as no - and it is not a third direction competing with roll forward, it is what
+the system does while the fix is being written.
+
 Reduce what the system is doing until it is serving something correct - shed the failing
 path, disable the feature, take the writer offline, serve degraded - and keep the forward
-fix as the only work in flight. A rollback nobody can guarantee is not the safer option
-merely because it is the one with a button.
+fix as the only work in flight. How far you reduce is where severity enters; the direction
+is already settled. A rollback nobody can guarantee is not the safer option merely because
+it is the one with a button.
 
 ## Capture before you roll back
 
