@@ -3,10 +3,6 @@
 `agentflow` — a binary that drives one GitHub issue to a review-ready pull request
 in a single unattended run, and the prompts that tell its agents what to do.
 
-**[→ Interactive documentation](docs/agentflow.html)** — the flow, the
-responsibilities, the knobs and the gaps, at whatever depth you want. Open it in a
-browser; it is a single self-contained file.
-
 ## What a run does
 
 ```
@@ -95,8 +91,6 @@ say, so both are validated against it and both fall back to its own defaults:
 effort at all — OpenCode's variant is whatever the model's provider calls it, so
 nothing is guessed there. Expect to set `model` when you leave the default agent.
 
-[Every key and its default →](docs/agentflow.html#controls)
-
 ## How it ends
 
 The last line is `done: <outcome>`.
@@ -133,8 +127,6 @@ Nothing **enforces** the division of labour except the prompts. Two phases are t
 not to touch GitHub and two are told to make exactly one kind of call; all four
 could do anything your `gh` credentials allow.
 
-[The rest of the sharp edges →](docs/agentflow.html#edges)
-
 ## Layout
 
 ```
@@ -142,7 +134,7 @@ src/            the binary — main.ts is the sequence, config.ts the TOML surfa
                 agents.ts the three agents it may run on, phases.ts the defaults
                 and the one call into sandcastle
 workflows/      the four prompts this repository points its own config at
-docs/           the interactive guide, and the plans that record how it got here
+docs/plans/     the plans that record how it got here
 skills/         unrelated: the mvc skill
 ```
 
