@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentflow Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  --paper:#F1F2F6; --surface:#FDFDFF; --surface-2:#E7E9F1; --sunk:#DCDFEA;
+  --ink:#14161F; --ink-2:#3A3F52; --muted:#5F6478; --rule:#D2D6E2; --rule-2:#BFC5D6;
+  --signal:#2B4AC7; --signal-soft:#DDE3FA;
+  --ok:#166F4E; --ok-soft:#D8EDE4;
+  --warn:#8F640F; --warn-soft:#F4E8CE;
+  --stop:#A2291F; --stop-soft:#F6DEDA;
+  --shadow:0 1px 2px rgba(20,22,31,.06), 0 8px 24px -16px rgba(20,22,31,.35);
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F1118; --surface:#161923; --surface-2:#1E2230; --sunk:#12141C;
+    --ink:#E7E9F1; --ink-2:#C2C7D6; --muted:#989EB2; --rule:#2A2F3E; --rule-2:#3A4054;
+    --signal:#8CA1FF; --signal-soft:#20263F;
+    --ok:#57C398; --ok-soft:#14291F;
+    --warn:#DDA748; --warn-soft:#2A2115;
+    --stop:#EB7C71; --stop-soft:#2E1A18;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1118; --surface:#161923; --surface-2:#1E2230; --sunk:#12141C;
+  --ink:#E7E9F1; --ink-2:#C2C7D6; --muted:#989EB2; --rule:#2A2F3E; --rule-2:#3A4054;
+  --signal:#8CA1FF; --signal-soft:#20263F;
+  --ok:#57C398; --ok-soft:#14291F;
+  --warn:#DDA748; --warn-soft:#2A2115;
+  --stop:#EB7C71; --stop-soft:#2E1A18;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--f-body); font-size:16px; line-height:1.6;
+}
+img{max-width:100%}
+::selection{background:var(--signal-soft); color:var(--ink)}
+a{color:var(--signal); text-decoration-thickness:1px; text-underline-offset:2px}
+:focus-visible{outline:2px solid var(--signal); outline-offset:2px; border-radius:2px}
+
+/* ---------- shell ---------- */
+.shell{max-width:1180px; margin:0 auto; padding:0 24px 96px; display:grid; grid-template-columns:196px minmax(0,1fr); gap:48px; align-items:start}
+@media (max-width:900px){ .shell{grid-template-columns:minmax(0,1fr); gap:0; padding:0 18px 72px} }
+
+/* ---------- rail ---------- */
+.rail{position:sticky; top:0; padding:40px 0; align-self:start}
+.rail-mark{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); padding-bottom:14px; border-bottom:1px solid var(--rule)}
+.rail nav{display:flex; flex-direction:column; gap:1px; margin-top:14px}
+.rail a{
+  font-family:var(--f-display); font-size:13.5px; font-weight:500; color:var(--ink-2);
+  text-decoration:none; padding:6px 10px 6px 12px; border-left:2px solid transparent; border-radius:0 3px 3px 0;
+}
+.rail a:hover{background:var(--surface-2); color:var(--ink)}
+.rail a[aria-current="true"]{border-left-color:var(--signal); color:var(--ink); font-weight:600; background:var(--surface-2)}
+@media (max-width:900px){
+  .rail{position:sticky; top:0; z-index:20; padding:0; background:var(--paper); border-bottom:1px solid var(--rule); margin:0 -18px; padding:0 18px}
+  .rail-mark{display:none}
+  .rail nav{flex-direction:row; gap:2px; margin:0; overflow-x:auto; padding:10px 0; scrollbar-width:none}
+  .rail nav::-webkit-scrollbar{display:none}
+  .rail a{white-space:nowrap; border-left:none; border-bottom:2px solid transparent; border-radius:3px 3px 0 0; padding:5px 9px}
+  .rail a[aria-current="true"]{border-left-color:transparent; border-bottom-color:var(--signal)}
+}
+
+/* ---------- masthead ---------- */
+.masthead{padding:56px 0 8px}
+.eyebrow{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--signal); margin:0 0 14px}
+h1{font-family:var(--f-display); font-weight:700; font-size:clamp(34px,5.2vw,52px); line-height:1.04; letter-spacing:-.022em; margin:0; text-wrap:balance}
+.thesis{font-size:19px; line-height:1.55; color:var(--ink-2); max-width:60ch; margin:18px 0 0; text-wrap:pretty}
+.cmd{display:inline-flex; align-items:center; gap:10px; margin-top:24px; font-family:var(--f-mono); font-size:14px; background:var(--surface); border:1px solid var(--rule); border-radius:5px; padding:9px 14px; box-shadow:var(--shadow)}
+.cmd .p{color:var(--muted)}
+
+/* ---------- depth dial ---------- */
+.dial{display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:32px 0 0; padding:14px 16px; background:var(--surface); border:1px solid var(--rule); border-radius:6px}
+.dial-label{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted)}
+.dial-group{display:flex; background:var(--sunk); border-radius:5px; padding:3px; gap:3px}
+.dial-group button{
+  font-family:var(--f-display); font-size:12.5px; font-weight:600; color:var(--ink-2);
+  background:none; border:0; padding:6px 13px; border-radius:3px; cursor:pointer;
+}
+.dial-group button:hover{color:var(--ink)}
+.dial-group button[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.dial-hint{font-size:14px; color:var(--muted); flex:1 1 240px; min-width:0}
+
+/* ---------- sections ---------- */
+section{padding-top:64px; scroll-margin-top:24px}
+@media (max-width:900px){ section{scroll-margin-top:64px} }
+h2{font-family:var(--f-display); font-weight:700; font-size:27px; letter-spacing:-.015em; margin:0; text-wrap:balance}
+.sub{color:var(--muted); margin:8px 0 0; max-width:66ch; font-size:16.5px}
+h3{font-family:var(--f-display); font-weight:600; font-size:17px; letter-spacing:-.008em; margin:0}
+p{margin:14px 0 0; max-width:68ch}
+code,kbd{font-family:var(--f-mono); font-size:.87em; background:var(--surface-2); padding:1.5px 5px; border-radius:3px; color:var(--ink)}
+pre{font-family:var(--f-mono); font-size:12.5px; line-height:1.65; background:var(--sunk); border:1px solid var(--rule); border-radius:6px; padding:14px 16px; overflow-x:auto; margin:16px 0 0}
+pre code{background:none; padding:0; font-size:inherit}
+
+/* ---------- glance strip ---------- */
+.glance{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:6px; overflow:hidden; margin-top:26px}
+@media (max-width:620px){ .glance{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.glance div{background:var(--surface); padding:16px 18px}
+.glance .n{font-family:var(--f-display); font-weight:700; font-size:26px; letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.1}
+.glance .k{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); margin-top:5px}
+
+/* ---------- flow schematic ---------- */
+.flow-wrap{margin-top:28px; border:1px solid var(--rule); border-radius:8px; background:var(--surface); overflow:hidden}
+.flow-scroll{overflow-x:auto; padding:20px 20px 8px}
+svg.flow{display:block; width:1112px; max-width:100%; height:auto}
+.flow text{font-family:var(--f-mono); fill:var(--muted)}
+.flow .n-title{font-family:var(--f-display); font-weight:600; font-size:15px; fill:var(--ink); letter-spacing:-.01em}
+.flow .n-meta{font-size:9.5px; letter-spacing:.13em; text-transform:uppercase}
+.flow .n-box{fill:var(--surface); stroke:var(--rule-2); stroke-width:1.25}
+.flow .n-bar{fill:var(--muted)}
+.flow .node.driver .n-bar{fill:var(--signal)}
+.flow .node{cursor:pointer}
+.flow .node:hover .n-box{stroke:var(--signal)}
+.flow .node[aria-selected="true"] .n-box{fill:var(--signal-soft); stroke:var(--signal); stroke-width:2}
+.flow .node:focus-visible{outline:none}
+.flow .node:focus-visible .n-box{stroke:var(--signal); stroke-width:2; stroke-dasharray:4 3}
+.flow .wire{stroke:var(--rule-2); stroke-width:1.5; fill:none}
+.flow .wire-drop{stroke:var(--rule-2); stroke-width:1.25; stroke-dasharray:3 4; fill:none}
+.flow .lbl{font-size:9.5px; letter-spacing:.1em; text-transform:uppercase}
+.flow .lbl-stop{fill:var(--stop)}
+.flow .lbl-clean{fill:var(--ok)}
+.flow-legend{display:flex; flex-wrap:wrap; gap:18px; padding:12px 20px 14px; border-top:1px solid var(--rule); background:var(--sunk); font-family:var(--f-mono); font-size:10.5px; letter-spacing:.06em; color:var(--muted); text-transform:uppercase}
+.flow-legend span{display:inline-flex; align-items:center; gap:7px}
+.swatch{width:9px; height:9px; border-radius:2px; display:inline-block}
+.sw-driver{background:var(--signal)} .sw-agent{background:var(--muted)}
+
+/* ---------- station panel ---------- */
+.station{margin-top:20px; border:1px solid var(--rule); border-radius:8px; background:var(--surface); overflow:hidden}
+.station-head{padding:18px 22px 18px; border-bottom:1px solid var(--rule)}
+.sh-row{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px 13px}
+.station-head .idx{font-family:var(--f-mono); font-size:11px; color:var(--muted); letter-spacing:.1em}
+.station-head h3{font-size:21px}
+.station-head p{margin:10px 0 0; color:var(--ink-2); max-width:70ch; font-size:16.5px}
+.pill{font-family:var(--f-mono); font-size:10px; letter-spacing:.11em; text-transform:uppercase; padding:3px 8px; border-radius:99px; border:1px solid currentColor; white-space:nowrap}
+.pill-driver{color:var(--signal); background:var(--signal-soft)}
+.pill-agent{color:var(--ok); background:var(--ok-soft)}
+.facts{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--rule)}
+@media (max-width:1000px){ .facts{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:560px){ .facts{grid-template-columns:minmax(0,1fr)} }
+.facts > div{background:var(--surface); padding:15px 22px}
+.facts dt{font-family:var(--f-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.facts dd{margin:6px 0 0; font-size:15px; line-height:1.5}
+.facts dd + dd{margin-top:4px}
+
+/* ---------- disclosure ---------- */
+details{border-top:1px solid var(--rule); background:var(--surface)}
+details > summary{
+  list-style:none; cursor:pointer; padding:13px 22px; display:flex; align-items:center; gap:10px;
+  font-family:var(--f-display); font-size:14px; font-weight:600; color:var(--ink-2);
+}
+details > summary::-webkit-details-marker{display:none}
+details > summary:hover{color:var(--ink); background:var(--surface-2)}
+details > summary::before{
+  content:""; width:6px; height:6px; border-right:1.5px solid var(--signal); border-bottom:1.5px solid var(--signal);
+  transform:rotate(-45deg); transition:transform .16s ease; flex:none; margin-left:2px;
+}
+details[open] > summary::before{transform:rotate(45deg)}
+details > summary .tag{margin-left:auto; font-family:var(--f-mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:400}
+.d-body{padding:2px 22px 20px}
+.d-body > :first-child{margin-top:0}
+@media (prefers-reduced-motion:reduce){ *{transition:none !important; animation:none !important} }
+
+/* ---------- generic panel ---------- */
+.panel{margin-top:24px; border:1px solid var(--rule); border-radius:8px; background:var(--surface); overflow:hidden}
+.panel-head{padding:16px 22px 14px; border-bottom:1px solid var(--rule)}
+.panel-head p{margin:6px 0 0; color:var(--muted); font-size:15px}
+.panel .d-body{padding-top:14px}
+
+/* ---------- tables ---------- */
+.t-wrap{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:14.5px}
+th,td{text-align:left; padding:9px 14px; border-bottom:1px solid var(--rule); vertical-align:top}
+th{font-family:var(--f-mono); font-size:10px; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); font-weight:500; white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+.matrix td:not(:first-child){text-align:center; font-family:var(--f-mono); font-size:13px}
+.matrix th:not(:first-child){text-align:center}
+.matrix td:first-child{font-size:14.5px; min-width:210px}
+.does{color:var(--ok); font-weight:600}
+.never{color:var(--rule-2)}
+.forbid{color:var(--stop)}
+
+/* ---------- outcome rows ---------- */
+.outcomes{display:grid; gap:1px; background:var(--rule)}
+.outcome{display:grid; grid-template-columns:170px 62px minmax(0,1fr); gap:14px; align-items:baseline; background:var(--surface); padding:13px 22px}
+@media (max-width:640px){ .outcome{grid-template-columns:1fr; gap:4px} }
+.outcome .word{font-family:var(--f-mono); font-size:13.5px; font-weight:500}
+.outcome .exit{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; padding:2px 8px; border-radius:3px; justify-self:start; white-space:nowrap}
+.exit-0{background:var(--ok-soft); color:var(--ok)}
+.exit-1{background:var(--stop-soft); color:var(--stop)}
+.outcome .why{color:var(--ink-2); font-size:15px}
+
+/* ---------- edges ---------- */
+.edges{display:grid; gap:1px; background:var(--rule)}
+.edge{background:var(--surface)}
+.edge > summary{padding:14px 22px; align-items:baseline}
+.edge .sev{font-family:var(--f-mono); font-size:9.5px; letter-spacing:.11em; text-transform:uppercase; padding:2px 7px; border-radius:3px; flex:none; font-weight:500}
+.sev-host{background:var(--stop-soft); color:var(--stop)}
+.sev-run{background:var(--warn-soft); color:var(--warn)}
+.sev-note{background:var(--surface-2); color:var(--muted)}
+
+/* ---------- roadmap ---------- */
+.roads{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; margin-top:26px}
+@media (max-width:820px){ .roads{grid-template-columns:minmax(0,1fr)} }
+.road{border:1px solid var(--rule); border-radius:8px; background:var(--surface); overflow:hidden}
+.road > header{padding:16px 20px 14px; border-bottom:1px solid var(--rule)}
+.road h3{display:flex; align-items:center; gap:9px}
+.road header p{margin:7px 0 0; font-size:14.5px; color:var(--muted)}
+.dot{width:8px; height:8px; border-radius:99px; flex:none}
+.dot-open{background:var(--warn)} .dot-closed{background:var(--stop)}
+.road details > summary{padding:11px 20px; font-size:13.5px}
+.road .d-body{padding:0 20px 16px; font-size:14.5px; color:var(--ink-2)}
+
+/* ---------- ref grid ---------- */
+.ref{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin-top:24px}
+.ref > div{background:var(--surface); padding:18px 20px}
+.ref h3{font-size:15px; margin-bottom:2px}
+.ref ul{margin:10px 0 0; padding-left:18px; font-size:14.5px; color:var(--ink-2)}
+.ref li{margin-top:5px}
+.ref li::marker{color:var(--rule-2)}
+
+.foot{margin-top:72px; padding-top:22px; border-top:1px solid var(--rule); font-family:var(--f-mono); font-size:11.5px; color:var(--muted); display:flex; flex-wrap:wrap; gap:6px 20px}
+.note{font-size:14.5px; color:var(--muted); margin-top:14px; padding-left:14px; border-left:2px solid var(--rule-2); max-width:66ch}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<aside class="rail">
+  <div class="rail-mark">agentflow</div>
+  <nav id="rail">
+    <a href="#glance">At a glance</a>
+    <a href="#run">The run</a>
+    <a href="#who">Who does what</a>
+    <a href="#controls">What you control</a>
+    <a href="#outcomes">How it ends</a>
+    <a href="#edges">Sharp edges</a>
+    <a href="#roadmap">Open and closed</a>
+    <a href="#reference">Reference</a>
+  </nav>
+</aside>
+
+<main>
+  <header class="masthead">
+    <p class="eyebrow">One issue · one unattended run · one review-ready pull request</p>
+    <h1>Agentflow Field Guide</h1>
+    <p class="thesis">Agentflow is a compiled binary that takes a GitHub issue number and, without anyone watching, drives it through four fresh agents in a throwaway git worktree until a pull request is open, reviewed, fixed and judged against what the issue actually asked for.</p>
+    <div class="cmd"><span class="p">$</span> <span>agentflow 42</span></div>
+  </header>
+
+  <div class="dial">
+    <span class="dial-label">Detail</span>
+    <div class="dial-group" role="group" aria-label="How much detail to show">
+      <button type="button" data-depth="0" aria-pressed="false">Map</button>
+      <button type="button" data-depth="1" aria-pressed="true">Working</button>
+      <button type="button" data-depth="2" aria-pressed="false">Everything</button>
+    </div>
+    <p class="dial-hint" id="dialHint">Everyday detail is open; contracts, exact signals and source pointers stay folded until you ask.</p>
+  </div>
+
+  <!-- ================= GLANCE ================= -->
+  <section id="glance">
+    <h2>At a glance</h2>
+    <p class="sub">Four things carry the whole design. If you read nothing else, read these.</p>
+
+    <div class="glance">
+      <div><div class="n">4</div><div class="k">phases, fixed</div></div>
+      <div><div class="n">6</div><div class="k">refusals up front</div></div>
+      <div><div class="n">5</div><div class="k">outcome words</div></div>
+      <div><div class="n">0</div><div class="k">ways to resume</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>The four load-bearing ideas</h3>
+        <p>Everything else in this guide is a consequence of one of them.</p>
+      </div>
+
+      <details open>
+        <summary>The driver owns the forge; the agents own the code<span class="tag">boundary</span></summary>
+        <div class="d-body">
+          <p>Claiming the issue, opening the pull request and pushing are done by the binary, never by an agent. Two exceptions were bought deliberately: the reviewer posts its own findings, and the conformance judge posts its own verdict — because a driver that renders comments has to parse them back out of an agent first.</p>
+          <p class="note">The prohibition on the other two phases lives in their prompts, not in code. Nothing stops an agent running <code>gh</code>. It is a budget, not a fence.</p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Every phase is a fresh agent<span class="tag">structural</span></summary>
+        <div class="d-body">
+          <p>Sandcastle's <code>resumeSession</code> is incompatible with more than one iteration, so each phase starts with no memory of the last. The reviewer genuinely did not write the code it is reviewing, and the conformance judge has read neither the implementation transcript nor the review's reasoning — only what landed on the branch and what was said on the pull request.</p>
+          <p>The cost is that every prompt must stand alone. The benefit is the only honest review an unattended pipeline can produce.</p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Commits are the only gate<span class="tag">gate</span></summary>
+        <div class="d-body">
+          <p>After the implement phase the binary asks one question: did that agent leave commits on the branch? If not, no pull request is opened and the run stops. There is no build, no test run, no lint, no frontmatter check — nothing that would need the binary to know anything about the repository it is driving.</p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>It refuses rather than resumes<span class="tag">recovery</span></summary>
+        <div class="d-body">
+          <p>Six checks run before anything is mutated. If the branch exists, a pull request is open, or the issue is closed or someone else's, the run refuses and nothing has happened yet. There is no state file, no resume flag and no crash recovery: delete the branch and run it again.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= THE RUN ================= -->
+  <section id="run">
+    <h2>The run</h2>
+    <p class="sub">Six stations, left to right. Click one to see what it reads, what it writes, and what happens when it goes wrong.</p>
+
+    <div class="flow-wrap">
+      <div class="flow-scroll">
+        <svg class="flow" viewBox="0 0 1112 192" role="img" aria-label="Pipeline: preflight, implement, open pull request, review, fix, conform. Review branches to conform directly when clean.">
+          <defs>
+            <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 1 L9 5 L0 9 z" fill="var(--rule-2)"/>
+            </marker>
+          </defs>
+
+          <!-- clean-review bypass -->
+          <path class="wire" d="M646 70 V 40 Q 646 32 654 32 H 1014 Q 1022 32 1022 40 V 66" marker-end="url(#arw)"/>
+          <text class="lbl lbl-clean" x="834" y="24" text-anchor="middle">review clean — skip the fix</text>
+
+          <!-- straight wires -->
+          <path class="wire" d="M148 102 H 198" marker-end="url(#arw)"/>
+          <path class="wire" d="M336 102 H 386" marker-end="url(#arw)"/>
+          <path class="wire" d="M524 102 H 574" marker-end="url(#arw)"/>
+          <path class="wire" d="M712 102 H 762" marker-end="url(#arw)"/>
+          <path class="wire" d="M900 102 H 950" marker-end="url(#arw)"/>
+
+          <text class="lbl" x="364" y="62" text-anchor="middle">if commits exist</text>
+          <text class="lbl" x="740" y="62" text-anchor="middle">findings posted</text>
+
+          <!-- drop-outs -->
+          <path class="wire-drop" d="M364 108 V 150"/>
+          <text class="lbl lbl-stop" x="364" y="166" text-anchor="middle">no commits — no pull request</text>
+          <path class="wire-drop" d="M646 134 V 150"/>
+          <text class="lbl lbl-stop" x="646" y="166" text-anchor="middle">no signal — a human takes over</text>
+
+          <g class="node driver" data-station="preflight" role="button" tabindex="0" aria-selected="false">
+            <rect class="n-box" x="16" y="70" width="132" height="64" rx="5"/>
+            <rect class="n-bar" x="16" y="70" width="3" height="64" rx="1.5"/>
+            <text class="n-meta" x="32" y="92">01 · driver</text>
+            <text class="n-title" x="32" y="114">Preflight</text>
+          </g>
+          <g class="node agent" data-station="implement" role="button" tabindex="0" aria-selected="true">
+            <rect class="n-box" x="204" y="70" width="132" height="64" rx="5"/>
+            <rect class="n-bar" x="204" y="70" width="3" height="64" rx="1.5"/>
+            <text class="n-meta" x="220" y="92">02 · agent</text>
+            <text class="n-title" x="220" y="114">Implement</text>
+          </g>
+          <g class="node driver" data-station="open" role="button" tabindex="0" aria-selected="false">
+            <rect class="n-box" x="392" y="70" width="132" height="64" rx="5"/>
+            <rect class="n-bar" x="392" y="70" width="3" height="64" rx="1.5"/>
+            <text class="n-meta" x="408" y="92">03 · driver</text>
+            <text class="n-title" x="408" y="114">Open PR</text>
+          </g>
+          <g class="node agent" data-station="review" role="button" tabindex="0" aria-selected="false">
+            <rect class="n-box" x="580" y="70" width="132" height="64" rx="5"/>
+            <rect class="n-bar" x="580" y="70" width="3" height="64" rx="1.5"/>
+            <text class="n-meta" x="596" y="92">04 · agent</text>
+            <text class="n-title" x="596" y="114">Review</text>
+          </g>
+          <g class="node agent" data-station="fix" role="button" tabindex="0" aria-selected="false">
+            <rect class="n-box" x="768" y="70" width="132" height="64" rx="5"/>
+            <rect class="n-bar" x="768" y="70" width="3" height="64" rx="1.5"/>
+            <text class="n-meta" x="784" y="92">05 · agent</text>
+            <text class="n-title" x="784" y="114">Fix</text>
+          </g>
+          <g class="node agent" data-station="conform" role="button" tabindex="0" aria-selected="false">
+            <rect class="n-box" x="956" y="70" width="132" height="64" rx="5"/>
+            <rect class="n-bar" x="956" y="70" width="3" height="64" rx="1.5"/>
+            <text class="n-meta" x="972" y="92">06 · agent</text>
+            <text class="n-title" x="972" y="114">Conform</text>
+          </g>
+        </svg>
+      </div>
+      <div class="flow-legend">
+        <span><i class="swatch sw-driver"></i> driver — the binary</span>
+        <span><i class="swatch sw-agent"></i> agent — a fresh Claude Code run</span>
+        <span>all six share one worktree</span>
+      </div>
+    </div>
+
+    <div class="station" id="station"></div>
+  </section>
+
+  <!-- ================= WHO DOES WHAT ================= -->
+  <section id="who">
+    <h2>Who does what</h2>
+    <p class="sub">The division is the design. Anything that changes state on GitHub belongs to the driver, except the two comments an agent is better placed to write than to hand over.</p>
+
+    <div class="panel">
+      <div class="t-wrap">
+        <table class="matrix">
+          <thead>
+            <tr><th>Action</th><th>Driver</th><th>Implement</th><th>Review</th><th>Fix</th><th>Conform</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Read the issue</td><td class="does">●</td><td class="never">·</td><td class="never">·</td><td class="never">·</td><td class="never">·</td></tr>
+            <tr><td>Assign the issue to you</td><td class="does">●</td><td class="forbid">✕</td><td class="forbid">✕</td><td class="forbid">✕</td><td class="forbid">✕</td></tr>
+            <tr><td>Create and tear down the worktree</td><td class="does">●</td><td class="never">·</td><td class="never">·</td><td class="never">·</td><td class="never">·</td></tr>
+            <tr><td>Write code</td><td class="never">·</td><td class="does">●</td><td class="forbid">✕</td><td class="does">●</td><td class="forbid">✕</td></tr>
+            <tr><td>Commit</td><td class="never">·</td><td class="does">●</td><td class="forbid">✕</td><td class="does">●</td><td class="forbid">✕</td></tr>
+            <tr><td>Push</td><td class="does">●</td><td class="forbid">✕</td><td class="forbid">✕</td><td class="forbid">✕</td><td class="forbid">✕</td></tr>
+            <tr><td>Open the pull request</td><td class="does">●</td><td class="forbid">✕</td><td class="forbid">✕</td><td class="forbid">✕</td><td class="forbid">✕</td></tr>
+            <tr><td>Post review findings</td><td class="never">·</td><td class="forbid">✕</td><td class="does">●</td><td class="forbid">✕</td><td class="forbid">✕</td></tr>
+            <tr><td>Decide a finding is wrong</td><td class="never">·</td><td class="never">·</td><td class="never">·</td><td class="does">●</td><td class="never">·</td></tr>
+            <tr><td>Judge the change against the issue</td><td class="never">·</td><td class="never">·</td><td class="never">·</td><td class="never">·</td><td class="does">●</td></tr>
+            <tr><td>Decide the outcome and exit code</td><td class="does">●</td><td class="never">·</td><td class="never">·</td><td class="never">·</td><td class="never">·</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details>
+        <summary>How each rule is actually enforced<span class="tag">honest answer</span></summary>
+        <div class="d-body">
+          <p>Two mechanisms, and only one of them is a mechanism.</p>
+          <p><strong>Enforced by construction:</strong> agents cannot push, because the driver holds the only <code>git push</code> calls and runs them from the worktree between phases. Agents cannot see each other's reasoning, because each phase is a new process.</p>
+          <p><strong>Enforced by prose:</strong> every <span class="forbid">✕</span> in the table above. Each prompt opens with an explicit prohibition — <em>Do not touch GitHub. No <code>gh</code>, no comment, no reply</em> — and the agent runs on the host with <code>bypassPermissions</code>, so nothing but the instruction stands between it and the forge.</p>
+          <p class="note">This was a deliberate trade. When the driver rendered the comments, "no agent calls <code>gh</code>" was auditable with one grep of a log. Letting the reviewer post directly deleted a findings file, a schema, a read-back path and a whole contract — and spent that audit line to do it.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= CONTROLS ================= -->
+  <section id="controls">
+    <h2>What you control</h2>
+    <p class="sub">Three levers, in descending order of power: the prompts, the per-phase settings in <code>agentflow.toml</code>, and the branch you happen to be standing on.</p>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Lever 1 — the prompts</h3>
+        <p>The largest surface by far. Four markdown files; the binary reads them and never inspects them.</p>
+      </div>
+      <div class="d-body">
+        <p>Each phase's <code>prompt</code> key is the only required setting in the file. The path resolves against the config file that declares it, expands <code>~</code>, and passes absolute paths through — so one prompt set can be shared across every repository you drive, and a repository can point at prompts that do not live inside it.</p>
+        <p>All four are read and checked at startup, before the issue is claimed, so a typo in a path fails while nothing has happened yet.</p>
+      </div>
+      <details>
+        <summary>The prompt arguments each phase receives<span class="tag">contract</span></summary>
+        <div class="d-body">
+          <div class="t-wrap">
+            <table>
+              <thead><tr><th>Phase</th><th>Arguments substituted into <code>{{…}}</code></th></tr></thead>
+              <tbody>
+                <tr><td><code>implement</code></td><td><code>ISSUE_NUMBER</code> <code>ISSUE_TITLE</code> <code>ISSUE_BODY</code> <code>ISSUE_URL</code></td></tr>
+                <tr><td><code>review</code></td><td><code>PR_NUMBER</code> <code>PR_URL</code> <code>BASE_BRANCH</code> <code>ISSUE_NUMBER</code> <code>ISSUE_TITLE</code> <code>ISSUE_BODY</code></td></tr>
+                <tr><td><code>fix</code></td><td><code>PR_NUMBER</code> <code>PR_URL</code> <code>BASE_BRANCH</code></td></tr>
+                <tr><td><code>conform</code></td><td>same as <code>review</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Sandcastle adds <code>SOURCE_BRANCH</code> and <code>TARGET_BRANCH</code> to every prompt itself; passing either one yourself is an error. The sets above are compiled in — a repository cannot add an argument, and a prompt that references an unknown key gets no substitution.</p>
+          <p class="note"><code>ISSUE_URL</code> and <code>PR_URL</code> are passed but unused by the prompts shipped in this repository. They are there for yours.</p>
+        </div>
+      </details>
+      <details data-depth="deep">
+        <summary>Pulling live context into a prompt<span class="tag">sandcastle</span></summary>
+        <div class="d-body">
+          <p>A prompt file may contain shell expressions, which sandcastle runs on the host and replaces with their stdout before the agent sees the prompt. This is how the fix phase gets the review's findings without a line of driver code:</p>
+          <pre><code>!`gh pr view {{PR_NUMBER}} --json comments --jq '.comments[] | "### @\(.author.login)\n\n\(.body)\n"'`</code></pre>
+          <p>Argument substitution runs first, expansion second — so <code>{{PR_NUMBER}}</code> inside the command is already resolved. Expansion only applies to expressions written in the prompt file; the same pattern arriving inside an argument value (an issue body, say) is inert text.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Lever 2 — <code>agentflow.toml</code></h3>
+        <p>One file, in the root of the repository being driven. No layering, no user-level file, no environment defaults, no <code>--config</code> flag.</p>
+      </div>
+      <div class="d-body">
+        <pre><code>copyToWorktree = []
+
+[phases.implement]
+prompt = "workflows/prompts/implement.md"
+maxIterations = 1
+
+[phases.review]
+prompt = "workflows/prompts/review.md"
+
+[phases.fix]
+prompt = "workflows/prompts/fix.md"
+
+[phases.conform]
+prompt = "workflows/prompts/conform.md"</code></pre>
+        <p>All four phase tables are required even when you only set a prompt path. Any key the validator does not recognise — including a misspelling of an optional one — fails the run with the list of keys that are valid there.</p>
+      </div>
+      <details>
+        <summary>Every key, and what it falls back to<span class="tag">reference</span></summary>
+        <div class="d-body">
+          <div class="t-wrap">
+            <table>
+              <thead><tr><th>Key</th><th>Where</th><th>Default</th><th>Notes</th></tr></thead>
+              <tbody>
+                <tr><td><code>prompt</code></td><td>every phase</td><td><em>required</em></td><td>Relative to this file; <code>~</code> expands; absolute passes through.</td></tr>
+                <tr><td><code>model</code></td><td>every phase</td><td><code>claude-opus-5</code></td><td>Any model string Claude Code accepts.</td></tr>
+                <tr><td><code>effort</code></td><td>every phase</td><td><code>medium</code></td><td><code>low</code> <code>medium</code> <code>high</code> <code>xhigh</code> <code>max</code></td></tr>
+                <tr><td><code>maxIterations</code></td><td>every phase</td><td>3 / 2 / 2 / 1</td><td>Integer 0–5. <strong>0 skips the phase.</strong></td></tr>
+                <tr><td><code>completionSignal</code></td><td>every phase</td><td>see below</td><td>The exact line that ends the phase's loop.</td></tr>
+                <tr><td><code>cleanSignal</code></td><td><code>review</code> only</td><td><code>REVIEW CLEAN</code></td><td>The second signal — the one meaning nothing to fix.</td></tr>
+                <tr><td><code>copyToWorktree</code></td><td>top level</td><td><code>[]</code></td><td>Paths copied into the worktree before any agent starts.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Default signals, per phase: <code>IMPLEMENTATION COMPLETE</code>, <code>REVIEW FINDINGS POSTED</code> (plus <code>REVIEW CLEAN</code>), <code>FIXES COMPLETE</code>, <code>CONFORMANCE POSTED</code>. Change one here and you must change it in the prompt too — nothing checks that they agree, deliberately: a grep passes on a prompt that merely mentions the line and fails on one that assembles it, so it would report confidently in both wrong directions.</p>
+        </div>
+      </details>
+      <details data-depth="deep">
+        <summary>Why the iteration count is the interesting knob<span class="tag">tuning</span></summary>
+        <div class="d-body">
+          <p>An iteration is a whole agent run. The loop stops early the moment the completion signal appears in the output, so <code>maxIterations</code> is a ceiling on retries, not a schedule — the defaults exist because a first pass sometimes ends without printing the line.</p>
+          <p><code>conform</code> defaults to a single iteration against review's two, and that asymmetry is deliberate: it makes exactly one append-only comment, so a second attempt cannot recover a partial post but can very easily duplicate a complete one.</p>
+          <p>Setting a phase to <code>0</code> is how a repository omits it; there is no separate flag. A skipped phase returns no signal and no commits, which the driver's existing gates report without ever knowing it was skipped.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Lever 3 — where you are standing</h3>
+        <p>There is no <code>--repo</code> flag and no <code>--base</code> flag. The invocation directory decides everything.</p>
+      </div>
+      <div class="d-body">
+        <p>The repository is the one containing your current directory, found with <code>git rev-parse --show-toplevel</code>. The base branch is whatever that repository has checked out when you invoke — so targeting a different base is <code>git switch</code>, and targeting a different repository is <code>cd</code>.</p>
+        <p>The branch it creates is always <code>agent/issue-&lt;n&gt;</code>, and the remote is always <code>origin</code>. Neither is configurable: a recognisable branch name across every repository is the point, and three other assumptions rest on the remote's name.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>What you deliberately cannot control</h3>
+        <p>Each of these was argued and closed. The reasons differ.</p>
+      </div>
+      <div class="d-body">
+        <div class="t-wrap">
+          <table>
+            <thead><tr><th>Not configurable</th><th>Because</th></tr></thead>
+            <tbody>
+              <tr><td>The agent kind</td><td>Sandcastle's six agent factories have genuinely different option shapes, including three incompatible <code>effort</code> unions. <code>effort</code> would become valid or invalid depending on a sibling key.</td></tr>
+              <tr><td><code>permissionMode</code> and the sandbox</td><td>Model and effort change how well a run goes; these change what an agent may do to your machine. A file in a repository you did not write is the wrong place to answer that.</td></tr>
+              <tr><td>Phase order, or adding a phase</td><td>Omitting a phase subsets a fixed sequence. Reordering makes the sequence repository-defined, which is the thing a fixed pipeline buys.</td></tr>
+              <tr><td>A <code>[defaults]</code> table or global overrides</td><td>Merge semantics inside the file cost the same thing cross-file layering costs: you stop being able to answer what a phase will run with by reading one place.</td></tr>
+              <tr><td>Branch name, PR title and body, remote name, log paths</td><td>They are what makes an agentflow pull request recognisable across repositories.</td></tr>
+              <tr><td>The iteration ceiling of 5</td><td>It is a number, not a policy. Anything that turns it into one is a mechanism nobody asked for.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= OUTCOMES ================= -->
+  <section id="outcomes">
+    <h2>How it ends</h2>
+    <p class="sub">Five words. The last line of output is <code>done: &lt;word&gt;</code>, and the exit code is read straight off it.</p>
+
+    <div class="panel">
+      <div class="outcomes">
+        <div class="outcome"><span class="word">clean-review</span><span class="exit exit-0">exit 0</span><span class="why">The reviewer found nothing, and the conformance judgement is on the pull request. Ready for you.</span></div>
+        <div class="outcome"><span class="word">fixed</span><span class="exit exit-0">exit 0</span><span class="why">Findings were posted, answered, and pushed; the conformance judgement is on the pull request.</span></div>
+        <div class="outcome"><span class="word">no-commits</span><span class="exit exit-1">exit 1</span><span class="why">The implement phase left the branch untouched. No pull request was opened.</span></div>
+        <div class="outcome"><span class="word">review-inconclusive</span><span class="exit exit-1">exit 1</span><span class="why">The reviewer printed neither signal, so whether findings were posted is unknown. The pull request is open and needs a human.</span></div>
+        <div class="outcome"><span class="word">conform-inconclusive</span><span class="exit exit-1">exit 1</span><span class="why">Everything before it succeeded, but whether a scope judgement reached the pull request is unknown.</span></div>
+      </div>
+      <details>
+        <summary>Why an unknown signal stops the run instead of guessing<span class="tag">rationale</span></summary>
+        <div class="d-body">
+          <p>The two review signals are the only thing the driver reads out of that phase. If neither fires, the reviewer may have posted five findings, or none, and the log is the only place the answer exists.</p>
+          <p>Running the fix phase on that guess is worse than not running it: on a clean review it invents work, and on a posted set it silently half-applies one. So the run stops with the pull request open — which is a state a human can read in ten seconds.</p>
+          <p>A failure the binary throws — a refusal, a missing prompt, a <code>gh</code> error — prints <code>agentflow: &lt;message&gt;</code> to stderr and exits 1 without an outcome word.</p>
+        </div>
+      </details>
+      <details data-depth="deep">
+        <summary>The one outcome that is currently wrong<span class="tag">known</span></summary>
+        <div class="d-body">
+          <p>A run whose fix phase is configured to <code>maxIterations = 0</code>, or whose fixer rejected every finding, still reports <code>fixed</code> with no commits. It earns a sixth word when someone actually configures a run that way and has to read the result.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= EDGES ================= -->
+  <section id="edges">
+    <h2>Sharp edges</h2>
+    <p class="sub">Things that are true, not bugs — but that will surprise you once each.</p>
+
+    <div class="panel">
+      <div class="edges">
+        <details class="edge">
+          <summary><span class="sev sev-host">host</span> The agents are not sandboxed</summary>
+          <div class="d-body">
+            <p>Sandcastle requires a sandbox provider and agentflow passes <code>noSandbox()</code>, which runs the agent as a local process against a bind-mounted worktree. Because <code>noSandbox()</code> declines to pass <code>--dangerously-skip-permissions</code>, the grant rides on the agent instead: <code>permissionMode: "bypassPermissions"</code>, a literal in the binary.</p>
+            <p>What is isolated is the working tree, not the machine. Four unattended agents run on your host with full tool access for the length of the run. Docker and podman providers exist in sandcastle and are a deliberate deferral — they return when a target repository needs an environment the host cannot provide.</p>
+          </div>
+        </details>
+        <details class="edge">
+          <summary><span class="sev sev-host">host</span> Nothing stops an agent calling <code>gh</code></summary>
+          <div class="d-body">
+            <p>Two phases are told not to touch GitHub and two are told to make exactly one kind of call. All four could do anything your <code>gh</code> credentials allow. The prompts are the whole control.</p>
+          </div>
+        </details>
+        <details class="edge">
+          <summary><span class="sev sev-run">run</span> The claim is not reverted when a run fails</summary>
+          <div class="d-body">
+            <p>The issue is assigned to you immediately after the six refusal checks pass and before the worktree exists. Nothing un-assigns it if a later phase throws. Reverting a claim is an explicit deferral, on the grounds that a binary which half-recovers is worse than one that refuses.</p>
+          </div>
+        </details>
+        <details class="edge">
+          <summary><span class="sev sev-run">run</span> Recovery is one line, and you have to know it</summary>
+          <div class="d-body">
+            <p>Because the run refuses when the branch or pull request already exists, re-running after a failure means clearing both:</p>
+            <pre><code>git branch -D agent/issue-42
+git push origin --delete agent/issue-42
+agentflow 42</code></pre>
+            <p>If the worktree was dirty when the run ended, it is preserved on disk instead of removed, and the path is printed. Nothing cleans it up for you.</p>
+          </div>
+        </details>
+        <details class="edge">
+          <summary><span class="sev sev-run">run</span> The base branch must already be on <code>origin</code></summary>
+          <div class="d-body">
+            <p>This is the first of the six refusals and it exists for one reason: <code>gh pr create</code> against a local-only base fails late and confusingly, after the issue has been claimed and the whole implement phase has run.</p>
+          </div>
+        </details>
+        <details class="edge">
+          <summary><span class="sev sev-note">note</span> Nothing coordinates two runs at once</summary>
+          <div class="d-body">
+            <p>No lock, no PID file, no queue. Structurally, distinct issues get distinct branches, worktrees and log filenames, so they do not collide. The residual hazard is two unsandboxed agents on one machine at the same time — which belongs to the sandbox question above, not to a lock.</p>
+          </div>
+        </details>
+        <details class="edge">
+          <summary><span class="sev sev-note">note</span> The logs are the only per-run evidence, and they are not committed</summary>
+          <div class="d-body">
+            <p>Each phase drains to <code>.sandcastle/logs/issue-&lt;n&gt;-&lt;timestamp&gt;-&lt;phase&gt;.log</code> in the repository being driven, and <code>.sandcastle/</code> is gitignored. There is no JSONL run record of timings, iterations and signals — that existed to evaluate the sandcastle stack and was removed when the evaluation ended. Commit shas are in git; everything else is in those files, on that machine.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ROADMAP ================= -->
+  <section id="roadmap">
+    <h2>Open and closed</h2>
+    <p class="sub">Absent features come in two kinds, and the difference matters more than the list. A <strong>deferral</strong> is waiting for a trigger. A <strong>boundary</strong> was argued and closed — reopening it means reopening the argument.</p>
+
+    <div class="roads">
+      <div class="road">
+        <header>
+          <h3><i class="dot dot-open"></i> Deferrals</h3>
+          <p>Each one names the thing that brings it back.</p>
+        </header>
+        <details><summary>Other forges — Azure DevOps, self-hosted</summary><div class="d-body">The plumbing was already proven by hand; what is unproven is the stage shape. The Azure DevOps implementation is the change that should create the forge seam, with the shape it actually needs — thread-based review comments rather than issue comments. Until then there is no forge abstraction at all, on purpose.</div></details>
+        <details><summary>Docker or podman sandboxing</summary><div class="d-body">Keeps out the image lifecycle, mount configuration and <code>.sandcastle/.env</code> handling. Returns when a target repository needs an environment the host cannot provide.</div></details>
+        <details><summary>Resume, state files, crash recovery, reverting a claim</summary><div class="d-body">A run refuses when the branch or pull request exists, which leaves a one-line recovery. A binary that half-resumes is worse than one that refuses.</div></details>
+        <details><summary>A per-run record of timings, iterations and signals</summary><div class="d-body">It existed to evaluate the sandcastle stack, and that evaluation is over. Reinstate if runs ever need comparing across repositories.</div></details>
+        <details><summary>Driver-owned comment posting, a findings file, structured output</summary><div class="d-body">The reviewing agent posts, accepting transient errors and format drift for a simpler pipeline. Reinstate if public mis-posts or half-commented pull requests actually occur — only a driver-read artifact can be validated before anything is published.</div></details>
+        <details><summary>Configuration as an imported TypeScript module</summary><div class="d-body">A compiled binary can import TypeScript from disk, so this is a choice rather than a limit. With the phase sequence fixed, code buys only a route to reintroduce logic one repository at a time. Returns with the first repository that needs a phase the fixed pipeline does not have.</div></details>
+        <details><summary>A host notification when a run completes</summary><div class="d-body">The pull request is the outcome and GitHub already notifies on it. It was also the binary's only platform-specific code path.</div></details>
+        <details><summary>Tests for the configuration surface</summary><div class="d-body">Verified by running the binary. Deferred against the argument that unknown-key rejection has no observable behaviour other than its error text.</div></details>
+      </div>
+
+      <div class="road">
+        <header>
+          <h3><i class="dot dot-closed"></i> Boundaries</h3>
+          <p>Closed on an argument about layering, not about timing.</p>
+        </header>
+        <details><summary>Write fencing — policing which paths an agent may touch</summary><div class="d-body">The pull request diff is the check, and the conformance phase reports every unrequested change by location. A driver that polices paths polices the wrong layer.</div></details>
+        <details><summary>Configuration layering, a user-level file, environment defaults</summary><div class="d-body">With inheritance, what a run will do in a repository stops being answerable from that repository. Duplicated prompt paths across several short config files are legible; one inherited file is not.</div></details>
+        <details><summary>An <code>agentflow init</code> command or embedded default prompts</summary><div class="d-body">It reinstates target-repository scaffolding that was already killed once, and bakes one review standard into a build artifact for every repository.</div></details>
+        <details><summary>A commands block in config, or a required project CLAUDE.md</summary><div class="d-body">Commands in config assert facts about repositories that drift the moment a script is renamed; a required CLAUDE.md makes the tool unusable in a repository until someone writes one. The prompts already tell the agent to read the convention the repository visibly follows.</div></details>
+        <details><summary>An agent-judged actionability gate on the issue</summary><div class="d-body">Judging whether an issue is actionable needs an agent, which is a fifth phase, which reopens the fixed pipeline. Validation stays mechanical: open, and not assigned to someone else.</div></details>
+        <details><summary>Concurrency control — a lock, a PID file, a queue</summary><div class="d-body">Nothing structural collides. The residual hazard belongs to the sandbox deferral.</div></details>
+        <details><summary>Checking that a phase's signal appears in its prompt</summary><div class="d-body">The check worth having is not the check available. A literal grep passes on a prompt that mentions the signal in prose and fails on one that assembles the line.</div></details>
+        <details><summary><code>--print-config</code> or <code>--dry-run</code></summary><div class="d-body">The run already states what every phase resolved to, in output it produces anyway, without a second entry point.</div></details>
+        <details><summary>Warning-level, non-fatal configuration diagnostics</summary><div class="d-body">The first non-fatal message makes config failure a two-tier thing where today it is one.</div></details>
+        <details><summary>A <code>--repo</code> flag</summary><div class="d-body"><code>cd</code> reaches the same outcome, and the flag was the only reason repository resolution would have two sources that can disagree. Reinstate if something other than a human shell ever invokes it.</div></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= REFERENCE ================= -->
+  <section id="reference">
+    <h2>Reference</h2>
+    <p class="sub">Everything you need on the machine, and everything the run leaves behind.</p>
+
+    <div class="ref">
+      <div>
+        <h3>On PATH</h3>
+        <ul>
+          <li><code>claude</code> — the agent, authenticated</li>
+          <li><code>git</code></li>
+          <li><code>gh</code> — authenticated, with <code>repo</code> scope</li>
+        </ul>
+        <p class="note">The binary carries none of these and none of their credentials.</p>
+      </div>
+      <div>
+        <h3>To build</h3>
+        <ul>
+          <li><code>bun</code> — build only, not runtime</li>
+          <li><code>npm install</code></li>
+          <li><code>npm run build</code> → <code>bin/agentflow</code></li>
+          <li><code>npm run typecheck</code></li>
+        </ul>
+        <p class="note"><code>bin/</code> is gitignored. The compiled binary is yours, not the repository's.</p>
+      </div>
+      <div>
+        <h3>In the target repository</h3>
+        <ul>
+          <li><code>agentflow.toml</code> in the root</li>
+          <li><code>.sandcastle/</code> gitignored</li>
+          <li>the base branch pushed to <code>origin</code></li>
+          <li>the issue open, and yours or unassigned</li>
+        </ul>
+      </div>
+      <div>
+        <h3>What a run leaves</h3>
+        <ul>
+          <li>the branch <code>agent/issue-&lt;n&gt;</code>, pushed</li>
+          <li>a pull request closing the issue</li>
+          <li>one comment per review finding</li>
+          <li>one scope-conformance comment</li>
+          <li>four logs under <code>.sandcastle/logs/</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <details data-depth="deep">
+        <summary>What sandcastle provides, and what agentflow adds<span class="tag">dependency</span></summary>
+        <div class="d-body">
+          <p><a href="https://www.npmjs.com/package/@ai-hero/sandcastle"><code>@ai-hero/sandcastle</code></a> is agentflow's one dependency. It contributes four things:</p>
+          <p><strong>The worktree.</strong> <code>createWorktree</code> makes a real git worktree on a named branch off a named base, under <code>.sandcastle/worktrees/</code>, and hands back a handle that runs agents in it and tears it down — preserving it if it is dirty.</p>
+          <p><strong>The agent loop.</strong> <code>worktree.run()</code> executes an agent up to <code>maxIterations</code> times, watching its output for any of the completion signals, and reports back the iterations, the commits the agent made, the signal that matched, and where the log went.</p>
+          <p><strong>Prompt assembly.</strong> <code>{{KEY}}</code> substitution from <code>promptArgs</code>, two built-in branch arguments, and host shell expansion of <code>!`command`</code> expressions.</p>
+          <p><strong>Providers.</strong> <code>claudeCode(model, {effort, permissionMode})</code> for the agent, and a choice of sandbox — of which agentflow uses exactly one, <code>noSandbox()</code>.</p>
+          <p>Everything else is agentflow: the phase sequence, the configuration file and its validator, the six refusals, the commits gate, the branching on review's two signals, every <code>gh</code> call the driver makes, and the outcome vocabulary.</p>
+        </div>
+      </details>
+      <details data-depth="deep">
+        <summary>Where each piece lives in the source<span class="tag">source</span></summary>
+        <div class="d-body">
+          <div class="t-wrap">
+            <table>
+              <thead><tr><th>File</th><th>Holds</th></tr></thead>
+              <tbody>
+                <tr><td><code>src/main.ts</code></td><td>The sequence: refusals, claim, worktree, the four phase calls, the gate, the outcome and exit code.</td></tr>
+                <tr><td><code>src/config.ts</code></td><td><code>agentflow.toml</code> — parsing, unknown-key rejection, path resolution, prompt existence checks.</td></tr>
+                <tr><td><code>src/phases.ts</code></td><td>Phase names, the defaults every optional key falls back to, and the one call into sandcastle.</td></tr>
+                <tr><td><code>src/github.ts</code></td><td>Every <code>gh</code> invocation the driver makes.</td></tr>
+                <tr><td><code>src/shell.ts</code></td><td><code>execFile</code>, with a buffer large enough for a diff.</td></tr>
+                <tr><td><code>workflows/prompts/</code></td><td>The four prompts this repository points its own config at.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <div class="foot">
+      <span>agentflow</span><span>@ai-hero/sandcastle 0.12.0</span><span>GitHub only</span><span>one issue, one run, one pull request</span>
+    </div>
+  </section>
+</main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STATIONS = {
+    preflight: {
+      idx: "01", title: "Preflight", actor: "driver",
+      lede: "Everything that can be refused is refused here, while the run has still changed nothing. Then, and only then, it claims the issue.",
+      facts: [
+        ["Reads", "agentflow.toml and all four prompt files; the issue, via gh issue view; your login, via gh api user; the state of the branch locally and on origin."],
+        ["Writes", "One thing: the issue is assigned to you."],
+        ["Then", "Creates the worktree on agent/issue-&lt;n&gt;, off the branch you are standing on, and copies in anything copyToWorktree names."],
+        ["If it fails", "It throws before the claim, and nothing needs undoing. After the claim, the assignment stays."]
+      ],
+      details: [
+        { t: "The six refusals, in order", tag: "contract", body:
+          "<ol><li>The base branch is not on <code>origin</code>.</li><li><code>agent/issue-&lt;n&gt;</code> already exists locally.</li><li>It already exists on <code>origin</code>.</li><li>A pull request is already open for it.</li><li>The issue is not open.</li><li>The issue is assigned to someone who is not you.</li></ol>" +
+          "<p>An unassigned issue passes the last check and is claimed. An issue already assigned to you passes too — that is the re-run case, and it is the branch checks that stop a genuine duplicate.</p>" },
+        { t: "Why config is validated before anything else", tag: "ordering", deep: true, body:
+          "<p>The loader reads all four prompt files at startup purely to fail early. A prompt path that is missing or unreadable would otherwise surface at the first phase — which is after the issue has been claimed and the worktree created, leaving you something to clean up for a typo.</p>" }
+      ]
+    },
+    implement: {
+      idx: "02", title: "Implement", actor: "agent",
+      lede: "A fresh agent gets the issue text and the worktree. It is told to decide rather than ask, to match the conventions the repository visibly follows, and to commit by explicit path.",
+      facts: [
+        ["Gets", "The issue number, title, body and URL — substituted into the prompt, not fetched by the agent."],
+        ["Must", "Commit locally. Its work is invisible to every later phase except through commits."],
+        ["Must not", "Touch GitHub. Push. Ask a question."],
+        ["Ends on", "<code>IMPLEMENTATION COMPLETE</code>, or when it runs out of iterations."]
+      ],
+      details: [
+        { t: "The gate that follows it", tag: "the whole gate", body:
+          "<p>The driver checks one thing: <code>result.commits.length</code>. Zero commits means no pull request is opened, the run reports <code>no-commits</code>, and the worktree is torn down.</p><p>Nothing else is checked — no build, no tests, no lint, no path or frontmatter validation. Those would all require the binary to know something about the repository it is driving, and it deliberately knows nothing.</p>" },
+        { t: "Why the driver hands it the issue text", tag: "design", deep: true, body:
+          "<p>So the agent needs no forge access to do its job, and so the prompt is complete before it starts. It also means an issue edited mid-run cannot change what the agent was asked, and the same prompt works against a forge with a different CLI.</p>" }
+      ]
+    },
+    open: {
+      idx: "03", title: "Open PR", actor: "driver",
+      lede: "The driver pushes the branch and opens the pull request itself. This is the only push of the run that is not conditional.",
+      facts: [
+        ["Runs", "<code>git push -u origin agent/issue-&lt;n&gt;</code> from the worktree, then <code>gh pr create</code>."],
+        ["Title", "The issue title, verbatim."],
+        ["Body", "<code>Closes #&lt;n&gt;</code>, plus a note that the run was unattended and that the review comments below were written by a second agent with no memory of writing the code."],
+        ["State", "Opened ready, not draft."]
+      ],
+      details: [
+        { t: "Why the pull request body says what it says", tag: "detail", body:
+          "<p>Two sentences, fixed in the binary and not configurable. They exist so that anyone landing on the pull request from a notification knows, before reading a single comment, that nobody watched this happen and that the reviewer was not the author. That is what makes an agentflow pull request recognisable across every repository it drives.</p>" }
+      ]
+    },
+    review: {
+      idx: "04", title: "Review", actor: "agent",
+      lede: "A second fresh agent reads the issue and the diff, and posts its findings straight onto the pull request. It is the one branch point in the run.",
+      facts: [
+        ["Gets", "The pull request number and URL, the base branch, and the issue — the same issue text the implementer got."],
+        ["Does", "Reads the diff, reads every touched file in full, then reads the nearest file of the same kind the change did <em>not</em> touch, to learn the real convention."],
+        ["Writes", "One <code>gh pr comment</code> per finding, strongest first, each numbered <code>N of M</code> so the next agent can tell a partial set from a complete one."],
+        ["Budget", "Between zero and five findings. Zero is a legitimate answer and a better one than a padded list."]
+      ],
+      details: [
+        { t: "The two signals, and the branch", tag: "contract", body:
+          "<p><code>REVIEW CLEAN</code> — nothing found, nothing posted. The fix phase is skipped entirely and the run goes straight to the conformance judgement.</p>" +
+          "<p><code>REVIEW FINDINGS POSTED</code> — one or more comments are on the pull request. The fix phase runs.</p>" +
+          "<p><strong>Neither</strong> — the run stops at <code>review-inconclusive</code>. Whether findings were posted is unknown, and a fix phase run on that guess is worse than none.</p>" },
+        { t: "What counts as a finding", tag: "rubric", deep: true, body:
+          "<p>Something a reviewer would block on: a stated constraint in the issue violated; a contradiction of a convention the repository visibly follows, with the file that shows it named; content that is wrong, self-contradictory, or promises behaviour it does not describe.</p>" +
+          "<p>Explicitly not a finding: taste that cannot be grounded in the issue or an existing file, restating what the change does, praise, a suggestion to add tests to a change with nothing executable in it, and anything you would preface with <em>consider</em>.</p>" +
+          "<p>The economics are stated to the agent directly: every finding becomes a public comment and then becomes work for the next agent, so a weak one costs twice.</p>" }
+      ]
+    },
+    fix: {
+      idx: "05", title: "Fix", actor: "agent",
+      lede: "A third fresh agent, given only the pull request. The findings reach it as the comment thread itself, expanded into its prompt on the host — no driver code carries them and no agent fetches them.",
+      facts: [
+        ["Gets", "The pull request number and URL and the base branch. Not the issue, and not the reviewer's reasoning."],
+        ["May", "Fix a finding, or reject it — with the reason in the commit body. A finding can be wrong."],
+        ["Must not", "Touch GitHub. Push. Fix anything the findings did not raise."],
+        ["Then", "The driver pushes, but only if the phase produced commits. Every finding rejected is a valid outcome with nothing to push."]
+      ],
+      details: [
+        { t: "How the findings get into the prompt", tag: "mechanism", body:
+          "<p>The prompt file contains a shell expression that sandcastle runs on the host and replaces with its output before the agent ever sees the text:</p>" +
+          "<pre><code>!`gh pr view {{PR_NUMBER}} --json comments \\\n  --jq '.comments[] | \"### @\\(.author.login)\\n\\n\\(.body)\\n\"'`</code></pre>" +
+          "<p>This deleted an entire contract: a findings file, its schema, the driver-side read-back, and comment ids as run evidence.</p>" },
+        { t: "Why a rejection must be written down", tag: "rubric", deep: true, body:
+          "<p>An unexplained non-change is indistinguishable from an oversight. The commit body lists every finding and what was done about it, including each rejection and its reason — which is also what the conformance phase reads to know that a declined finding is not an unmet intent.</p>" }
+      ]
+    },
+    conform: {
+      idx: "06", title: "Conform", actor: "agent",
+      lede: "The last agent grades the change against what was asked, on two axes that are never combined into one number. It runs on both paths — after a fix, and after a clean review.",
+      facts: [
+        ["Gets", "The issue, the pull request number, the base branch. It reads the comment thread and the diff itself."],
+        ["Writes", "Exactly one <code>gh pr comment</code>. No review, no approval, no label, no second comment."],
+        ["Never", "Commits, pushes or edits a file. It is judging the change, not changing it."],
+        ["Decides nothing", "The verdict is read by a human. It does not affect the outcome word — only a failure to post it does."]
+      ],
+      details: [
+        { t: "The two axes", tag: "rubric", body:
+          "<p><strong>Did not follow instructions.</strong> Every intent the issue stated becomes one row, graded <code>satisfied</code>, <code>partial</code> or <code>unmet</code>, each with a required citation as <code>path:line</code>. A row with no citation is not a finding. There is no optional tier — everything the issue asked for is required.</p>" +
+          "<p><strong>Unrequested changes.</strong> Anything the change contains that nothing asked for, each one location and one neutral sentence. Not listed, ever: a change the requested change cannot be made without — a signature updated at its call sites, an import added, a test covering new behaviour — or anything done in answer to a review comment.</p>" +
+          "<p>The comment leads with a counts line, so the whole judgement is legible without expanding anything.</p>" },
+        { t: "Why it posts even when everything is clean", tag: "design", body:
+          "<p>A pull request with no conformance comment is indistinguishable from one this phase never ran on. The clean judgement is the one worth having on record.</p>" },
+        { t: "Where its inputs come from, and why that ordering matters", tag: "detail", deep: true, body:
+          "<p>The issue is the only source of intents. A change made in answer to a review finding was asked for as surely as anything in the issue — so it is neither an unmet intent nor an unrequested change. A finding the fixer <em>declined</em>, with its reason in a commit body, never becomes an intent: the judge does not grade the rejection.</p>" +
+          "<p>One iteration, and one pass. There is no second attempt to post a comment it did not post — the phase makes a single append-only call, so a retry cannot recover a partial post but can duplicate a complete one.</p>" }
+      ]
+    }
+  };
+
+  var ORDER = ["preflight", "implement", "open", "review", "fix", "conform"];
+  var panel = document.getElementById("station");
+  var nodes = Array.prototype.slice.call(document.querySelectorAll(".flow .node"));
+  var current = "implement";
+
+  function esc(s) { return s; }
+
+  function render(key) {
+    var s = STATIONS[key];
+    if (!s) { return; }
+    current = key;
+
+    var html = '<div class="station-head"><div class="sh-row">' +
+      '<span class="idx">' + s.idx + '</span>' +
+      '<h3>' + s.title + '</h3>' +
+      '<span class="pill ' + (s.actor === "driver" ? "pill-driver" : "pill-agent") + '">' + s.actor + '</span>' +
+      '</div><p>' + s.lede + '</p>' +
+      '</div><dl class="facts">';
+
+    s.facts.forEach(function (f) {
+      html += '<div><dt>' + f[0] + '</dt><dd>' + esc(f[1]) + '</dd></div>';
+    });
+    html += '</dl>';
+
+    s.details.forEach(function (d) {
+      html += '<details' + (d.deep ? ' data-depth="deep"' : '') + '>' +
+        '<summary>' + d.t + (d.tag ? '<span class="tag">' + d.tag + '</span>' : '') + '</summary>' +
+        '<div class="d-body">' + d.body + '</div></details>';
+    });
+
+    panel.innerHTML = html;
+    nodes.forEach(function (n) {
+      n.setAttribute("aria-selected", String(n.getAttribute("data-station") === key));
+    });
+    applyDepth(depth);
+  }
+
+  nodes.forEach(function (n) {
+    n.addEventListener("click", function () { render(n.getAttribute("data-station")); });
+    n.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); render(n.getAttribute("data-station")); return; }
+      var i = ORDER.indexOf(n.getAttribute("data-station"));
+      var next = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : -1;
+      if (next >= 0 && next < ORDER.length) {
+        e.preventDefault();
+        var target = nodes[next];
+        target.focus();
+        render(ORDER[next]);
+      }
+    });
+  });
+
+  /* ---- depth dial ---- */
+  var depth = 1;
+  var HINTS = [
+    "Headings and the flow only. Open anything you want a closer look at.",
+    "Everyday detail is open; contracts, exact signals and source pointers stay folded until you ask.",
+    "Every disclosure on the page is open, including the rationale behind each decision."
+  ];
+  var dialButtons = Array.prototype.slice.call(document.querySelectorAll(".dial-group button"));
+  var hint = document.getElementById("dialHint");
+
+  function applyDepth(level) {
+    document.querySelectorAll("details").forEach(function (d) {
+      var isDeep = d.getAttribute("data-depth") === "deep";
+      d.open = level === 2 ? true : level === 1 ? !isDeep && d.closest(".edges, .road") === null : false;
+    });
+    dialButtons.forEach(function (b) {
+      b.setAttribute("aria-pressed", String(Number(b.getAttribute("data-depth")) === level));
+    });
+    hint.textContent = HINTS[level];
+  }
+
+  dialButtons.forEach(function (b) {
+    b.addEventListener("click", function () {
+      depth = Number(b.getAttribute("data-depth"));
+      applyDepth(depth);
+    });
+  });
+
+  /* ---- scrollspy ---- */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#rail a"));
+  var sections = links.map(function (a) { return document.querySelector(a.getAttribute("href")); });
+
+  function spy() {
+    var best = 0;
+    sections.forEach(function (sec, i) {
+      if (sec && sec.getBoundingClientRect().top <= 120) { best = i; }
+    });
+    links.forEach(function (a, i) { a.setAttribute("aria-current", String(i === best)); });
+  }
+
+  var ticking = false;
+  window.addEventListener("scroll", function () {
+    if (ticking) { return; }
+    ticking = true;
+    window.requestAnimationFrame(function () { spy(); ticking = false; });
+  }, { passive: true });
+
+  render(current);
+  applyDepth(depth);
+  spy();
+})();
+</script>
+</body>
+</html>
