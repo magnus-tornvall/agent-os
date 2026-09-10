@@ -69,8 +69,8 @@ until it comes back. That is the cost, and it is paid for as long as the quarant
 Quarantine is a promise, not a comment. It requires three things, all written down where
 the skip is:
 
-- **a named owner** - a person, not a team and not the author of the commit that
-  quarantined it
+- **a named owner** - a person named in the skip itself, not a team and not something
+  the next reader has to recover from git blame
 - **a stated end** - a date or a release, after which the quarantine is itself a failure
 - **a link to the issue tracking the fix** - the issue is the work; the skip is only the
   marker
