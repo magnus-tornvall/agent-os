@@ -244,6 +244,7 @@ async function implementIssue(run: Run): Promise<PhaseResult> {
   return runPhase({
     name: "implement",
     phase: run.config.phases.implement,
+    agent: run.config.agent,
     worktree: run.worktree,
     promptArgs: {
       ISSUE_NUMBER: run.issue.number,
@@ -288,6 +289,7 @@ async function judgeScope(run: Run, pr: PullRequest): Promise<boolean> {
   const conformed = await runPhase({
     name: "conform",
     phase: run.config.phases.conform,
+    agent: run.config.agent,
     worktree: run.worktree,
     promptArgs: judgementPromptArgs(run, pr),
     logDir: run.logDir,
@@ -311,6 +313,7 @@ async function reviewAndFix(run: Run, pr: PullRequest): Promise<Outcome> {
   const reviewed = await runPhase({
     name: "review",
     phase: review,
+    agent: run.config.agent,
     worktree: run.worktree,
     promptArgs: judgementPromptArgs(run, pr),
     logDir: run.logDir,
@@ -325,6 +328,7 @@ async function reviewAndFix(run: Run, pr: PullRequest): Promise<Outcome> {
     const fixed = await runPhase({
       name: "fix",
       phase: run.config.phases.fix,
+      agent: run.config.agent,
       worktree: run.worktree,
       promptArgs: {
         PR_NUMBER: pr.number,

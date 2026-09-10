@@ -41,8 +41,9 @@ judgement is posted on both paths.
 
 ## Requirements
 
-On `PATH`, authenticated: `claude`, `git`, `gh`. The binary carries neither them nor
-their credentials. `bun` is needed to build, not to run.
+On `PATH`, authenticated: `git`, `gh`, and the CLI of the configured agent —
+`claude`, `codex` or `opencode`. The binary carries neither them nor their
+credentials. `bun` is needed to build, not to run.
 
 In the repository being driven: an `agentflow.toml` in the root, `.sandcastle/`
 gitignored, the base branch pushed to `origin`, and an issue that is open and either
@@ -65,6 +66,7 @@ user-level file and no environment defaults: what a run will do in a repository 
 answerable by reading that repository.
 
 ```toml
+agent = "claude"
 copyToWorktree = []
 
 [phases.implement]
@@ -85,6 +87,13 @@ against the config file that declares it, so one prompt set can be shared across
 repositories. `model`, `effort`, `maxIterations` (0–5, where `0` skips the phase)
 and `completionSignal` are optional per phase, plus `cleanSignal` on `review`. Any
 unrecognised key fails the run.
+
+`agent` is top level — `claude` (the default), `codex` or `opencode`. Every phase
+runs on it; there is no per-phase agent. It decides what `model` and `effort` may
+say, so both are validated against it and both fall back to its own defaults:
+`claude-opus-5`/`medium`, `gpt-5.6-sol`/`medium`, and `opencode/big-pickle` with no
+effort at all — OpenCode's variant is whatever the model's provider calls it, so
+nothing is guessed there. Expect to set `model` when you leave the default agent.
 
 [Every key and its default →](docs/agentflow.html#controls)
 
@@ -116,7 +125,8 @@ git push origin --delete agent/issue-42
 ## Two things to know before you run it
 
 The agents are **not sandboxed**. Sandcastle's `noSandbox()` runs them as local
-processes against a bind-mounted worktree, with `permissionMode: "bypassPermissions"`.
+processes against a bind-mounted worktree, and whichever agent you configure is
+launched with its approvals bypassed — an unattended run cannot answer a prompt.
 What is isolated is the working tree, not your machine.
 
 Nothing **enforces** the division of labour except the prompts. Two phases are told
@@ -129,7 +139,8 @@ could do anything your `gh` credentials allow.
 
 ```
 src/            the binary — main.ts is the sequence, config.ts the TOML surface,
-                phases.ts the defaults and the one call into sandcastle
+                agents.ts the three agents it may run on, phases.ts the defaults
+                and the one call into sandcastle
 workflows/      the four prompts this repository points its own config at
 docs/           the interactive guide, and the plans that record how it got here
 skills/         unrelated: the mvc skill
@@ -140,6 +151,6 @@ skills/         unrelated: the mvc skill
 [`@ai-hero/sandcastle`](https://www.npmjs.com/package/@ai-hero/sandcastle) — the one
 dependency. It contributes the git worktree, the agent iteration loop with its
 completion signals, prompt assembly (`{{KEY}}` substitution and host expansion of
-`` !`command` `` expressions), and the Claude Code and sandbox providers. Everything
+`` !`command` `` expressions), and the agent and sandbox providers. Everything
 else — the phase sequence, the config surface, the refusals, the gate, the branch on
 review's two signals, every `gh` call the driver makes — is agentflow.

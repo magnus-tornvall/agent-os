@@ -2,10 +2,15 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import {
-  EFFORTS,
+  AGENT_KINDS,
+  DEFAULT_AGENT_KIND,
+  agentFor,
+  type Agent,
+  type AgentKind,
+} from "./agents.ts";
+import {
   PHASE_DEFAULTS,
   PHASE_NAMES,
-  type Effort,
   type PhaseConfig,
   type PhaseName,
   type ReviewPhaseConfig,
@@ -15,7 +20,7 @@ export const CONFIG_FILENAME = "agentflow.toml";
 
 const MAX_ITERATIONS_CEILING = 5;
 
-const TOP_LEVEL_KEYS = ["phases", "copyToWorktree"] as const;
+const TOP_LEVEL_KEYS = ["agent", "phases", "copyToWorktree"] as const;
 
 const PHASE_KEYS = [
   "prompt",
@@ -30,6 +35,10 @@ const PHASE_KEYS = [
 const REVIEW_KEYS = [...PHASE_KEYS, "cleanSignal"] as const;
 
 export type Config = {
+  /** Resolved here rather than by the driver, because what a phase's `model`
+   *  and `effort` may be is the agent's to say and the two are validated
+   *  together. */
+  readonly agent: Agent;
   readonly phases: {
     readonly implement: PhaseConfig;
     readonly review: ReviewPhaseConfig;
@@ -84,18 +93,38 @@ function nonEmptyString(
   return value;
 }
 
+function agentKind(value: unknown, configPath: string): AgentKind {
+  if (value === undefined) {
+    return DEFAULT_AGENT_KIND;
+  }
+  const match = AGENT_KINDS.find((kind) => kind === value);
+  if (match === undefined) {
+    throw new Error(
+      `${configPath}: agent must be one of ${AGENT_KINDS.join(", ")}`,
+    );
+  }
+  return match;
+}
+
+/** Which efforts are legal depends on the agent above it in the same file: the
+ *  three name different sets, and one of them names none at all. */
 function effortValue(
+  agent: Agent,
   value: unknown,
   configPath: string,
   path: string,
-): Effort {
+): string {
+  if (agent.efforts === undefined) {
+    return nonEmptyString(value, configPath, path);
+  }
   const match =
     typeof value === "string"
-      ? EFFORTS.find((effort) => effort === value)
+      ? agent.efforts.find((effort) => effort === value)
       : undefined;
   if (match === undefined) {
     throw new Error(
-      `${configPath}: ${path} must be one of ${EFFORTS.join(", ")}`,
+      `${configPath}: ${path} must be one of ${agent.efforts.join(", ")} ` +
+        `for agent "${agent.kind}"`,
     );
   }
   return match;
@@ -125,6 +154,7 @@ function readCommonKeys(
   table: Record<string, unknown>,
   configPath: string,
   configDir: string,
+  agent: Agent,
 ) {
   const path = `phases.${name}`;
   const defaults = PHASE_DEFAULTS[name];
@@ -135,12 +165,12 @@ function readCommonKeys(
     ),
     model:
       table.model === undefined
-        ? defaults.model
+        ? agent.defaultModel
         : nonEmptyString(table.model, configPath, `${path}.model`),
     effort:
       table.effort === undefined
-        ? defaults.effort
-        : effortValue(table.effort, configPath, `${path}.effort`),
+        ? agent.defaultEffort
+        : effortValue(agent, table.effort, configPath, `${path}.effort`),
     maxIterations:
       table.maxIterations === undefined
         ? defaults.maxIterations
@@ -165,6 +195,7 @@ function readPhase(
   phaseTables: Record<string, unknown>,
   configPath: string,
   configDir: string,
+  agent: Agent,
 ): PhaseConfig {
   const table = readTable(phaseTables[name], `${configPath}: [phases.${name}]`);
   rejectUnknownKeys(table, PHASE_KEYS, configPath, `phases.${name}`);
@@ -173,6 +204,7 @@ function readPhase(
     table,
     configPath,
     configDir,
+    agent,
   );
   return { ...rest, completionSignals: [completionSignal] };
 }
@@ -181,6 +213,7 @@ function readReviewPhase(
   phaseTables: Record<string, unknown>,
   configPath: string,
   configDir: string,
+  agent: Agent,
 ): ReviewPhaseConfig {
   const table = readTable(phaseTables.review, `${configPath}: [phases.review]`);
   rejectUnknownKeys(table, REVIEW_KEYS, configPath, "phases.review");
@@ -189,6 +222,7 @@ function readReviewPhase(
     table,
     configPath,
     configDir,
+    agent,
   );
   const cleanSignal =
     table.cleanSignal === undefined
@@ -222,15 +256,17 @@ export async function loadConfig(repoRoot: string): Promise<Config> {
   const top = readTable(parsed, configPath);
   rejectUnknownKeys(top, TOP_LEVEL_KEYS, configPath, "");
 
+  const agent = agentFor(agentKind(top.agent, configPath));
+
   const phaseTables = readTable(top.phases, `${configPath}: [phases]`);
   rejectUnknownKeys(phaseTables, PHASE_NAMES, configPath, "phases");
   const configDir = dirname(configPath);
 
   const phases = {
-    implement: readPhase("implement", phaseTables, configPath, configDir),
-    review: readReviewPhase(phaseTables, configPath, configDir),
-    fix: readPhase("fix", phaseTables, configPath, configDir),
-    conform: readPhase("conform", phaseTables, configPath, configDir),
+    implement: readPhase("implement", phaseTables, configPath, configDir, agent),
+    review: readReviewPhase(phaseTables, configPath, configDir, agent),
+    fix: readPhase("fix", phaseTables, configPath, configDir, agent),
+    conform: readPhase("conform", phaseTables, configPath, configDir, agent),
   };
 
   const copyDeclared = top.copyToWorktree ?? [];
@@ -253,5 +289,5 @@ export async function loadConfig(repoRoot: string): Promise<Config> {
     });
   }
 
-  return { phases, copyToWorktree: copyDeclared as string[] };
+  return { agent, phases, copyToWorktree: copyDeclared as string[] };
 }
