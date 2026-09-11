@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 It grills. That is the whole method: a design tree walked by asking the user the question
 whose answer prunes the most, then re-deriving the frontier. What survives is the trunk,
-the ledger of what was cut, and the reason for each.
+the ledger of what was cut, the reason for each, and the risks the user ruled on.
 
 Minimal is the constraint, not the aspiration. Every item that ships must be load-bearing
 on the outcome. Three rounds is the budget, so that "we'll decide later" costs something.
@@ -27,8 +27,8 @@ A shape this conversation already settled is determined, not a candidate: it is 
 and its provenance is the user's own answer. Re-deriving it invites a second opinion on a
 decision already made, and afterwards the two are indistinguishable. The frontier it leaves is
 empty, and an empty frontier asks nothing - which is what a re-invocation that wants only the
-file costs. The transfer carries the minimality pass with it: a shape that closed once has
-already been probed, so a re-invocation goes straight to the report or the file.
+file costs. A shape that closed once was read against the outcome then, so a re-invocation goes
+straight to the report or the file.
 
 List the candidate questions first, then dispatch one subagent to answer what it can. The
 candidates drive the search: a fixed file list reads what does not bear on this change and
@@ -36,6 +36,13 @@ misses the one file that does.
 
 Candidates span both axes: what the repo settles, and what only the user can decide. A list
 drawn from the first alone comes back with nothing dark, which leaves round 1 nothing to ask.
+
+They span what could go wrong too - a risk is a candidate like any other. The axes worth a
+thought while listing them: architecture and the technical mechanism under it, security,
+operations and maintenance, dependencies and integration. Requirements risk needs no prompt,
+because dark is already what it looks like. The axes prompt the listing and appear nowhere
+else - one that turns nothing up produces no candidate and no line, since a named axis
+reporting nothing found is a ritual rather than a finding.
 
 The explorer returns, per candidate, either the answer with `file:line` or **dark** - looked
 for, not found. Absence is a finding, because it is what becomes a question. A candidate can
@@ -53,6 +60,15 @@ telling those two apart is the point - which is why a determination without prov
 dark, not determined. General knowledge about a framework is not provenance, and a citation
 that proves something adjacent is worse than none: it makes the guess look checked.
 
+A third provenance is admissible, and what it buys is the question the grill did not need to
+ask. An inference from material already settled - the outcome, an answer the user gave, a
+determination with a citation - is reported as **provisional**, with the material it follows
+from. Silence accepts it, a word corrects it, and either way it cost a line rather than a slot.
+It is not a breach of the above: what that forbids is a guess indistinguishable from the user's
+own decision, and a provisional entry is typed so that it never is. One does not serve as
+provenance for another, though - an inference resting on an inference is a guess with a paper
+trail.
+
 The web is in scope for one thing: a verifiable external fact a candidate turns on - a
 platform capability, an API shape, a version. Not approach comparison, not best practice:
 those are stances with no author, and the user owns the stances here. URL is provenance. Two
@@ -60,9 +76,19 @@ searches per candidate, and the answer counts only from a primary source - the v
 documentation, the package's own stated requirements, the specification text. Two searches
 that do not reach one leave the candidate dark.
 
-Report the map before round 1: **determined**, with provenance; **ruled out**; **dark**. The
-user corrects it or says nothing, and either way round 1 asks from a shared map. Correcting
-a map is volunteered, so it costs no round.
+Report the map before round 1: **determined**, with provenance; **provisional**, with what it
+follows from; **ruled out**; **dark**; and the **risks**. The user corrects it or says nothing,
+and either way round 1 asks from a shared map. Correcting a map is volunteered, so it costs no
+round.
+
+The risks are the one part of the map the user rules on rather than corrects. One line each -
+the risk, its provenance, and what it would open - with no stance and no body, because the
+value is in the ruling, and a paragraph apiece turns the block into four questions asked before
+round 1. Accepting a risk raises the ranking of every question hanging off it. Declining prunes
+them, and the risk lands in the non-goals typed the way it was declined: a boundary when it
+falls outside the change's shape, a deferral when it is real and parked. A decline is a ruling,
+so it is recorded - an unrecorded one is re-raised by whatever implements the change, and by
+then nobody remembers it was answered.
 
 ### Rounds 1 to 3 - ask, re-derive
 
@@ -77,9 +103,16 @@ three of four answered still spent it, or nothing bounds a grill that keeps re-a
 same batch is worth asking. The failure mode is batching four and having the first answer
 delete the other three - so when in doubt, hold it back.
 
-More than four candidates, rank by what an answer would prune. The question that rules the
-most out takes the slot; one that closes a single leaf takes one only when nothing bigger
-is open.
+More than four candidates, rank by what an answer would prune and by the risk it bears on: an
+accepted risk is what wins a slot for a question that would not have taken one on pruning
+alone. The question that rules the most out takes the slot; one that closes a single leaf takes
+one only when nothing bigger is open. A question whose answer the grill can predict is not
+ranked at all - it belongs in the map as provisional, where it costs a line.
+
+**A risk a stance creates mid-grill joins the map's risk block**, appended, and takes the same
+ruling. One register. Two means the close has to merge them, and the merge is where a risk
+loses its disposition: a reader of two lists cannot tell why a risk sits in one rather than the
+other, or which ones the user answered.
 
 **What the batch could not hold is listed, not discarded.** A candidate that would prune a
 branch - kill other questions hanging off it - gets one line under the round in an **open,
@@ -196,7 +229,7 @@ and argues it once; the call is the user's, and a rejected proposal is closed.
 
 The same statement carries the pushback. An item that competes with a pattern already in the
 repo, adds a dependency, or challenges the existing architecture says so where it enters.
-That is cheaper than finding it at the minimality pass, and it is the same sentence either
+That is cheaper than finding it once the set is closed, and it is the same sentence either
 way.
 
 ## What ships, what does not
@@ -222,44 +255,16 @@ everything imaginable; if nobody would have asked for it, leave it out.
 alternative was not a decision, it was a description. "We will write tests" rules nothing
 out; "tests go in the existing suite, not a new harness" rules out a new harness.
 
-## The minimality pass
-
-Runs once per grill, when the frontier closes. Everything above enforces *defined*; this is the last
-thing that enforces *minimal*, and the only one that sees the closed set rather than one
-item arriving. Minimal here means not unnecessarily complex, not the smallest design
-imaginable: the pass exists against drift, complexity creep, scope expansion and
-inefficiency, not against every line that could technically go.
-
-Probe the shipping items that add **mechanism**, in one batch: drop this - does the outcome
-still hold? An item adds mechanism when deleting it changes what the system does - a code
-path, a dependency, a schema, a config surface, a new pattern. An item whose deletion leaves
-behaviour identical - a name, a doc, a test, a type - does not enter the batch at all, because
-probing it produces a squabble over a detail nobody wanted cut.
-
-Inefficiency is the one trigger that belongs here rather than at entry. Two items that each
-looked proportionate as they arrived can be redundant against each other once the set is
-closed, and only the closed set shows it.
-
-Report only what moves - an item whose deletion breaks the outcome stays, and stays silently,
-because the shipping list already asserts it is load-bearing:
-
-- **It still holds.** The item was never load-bearing. It becomes a non-goal, deferred
-  with the reason it survived this long.
-- **Cannot tell.** The frontier reopens. The shape was out of questions, not settled - and
-  if the budget is also spent, the split signal fires here instead of at exhaustion.
-
-Apply accepted deletions one at a time, and if two or more land, read the reduced set back
-against the outcome. Two items can each be individually droppable because the other covers
-the outcome, and dropping both breaks it. That read-back buys the whole class of mistake.
-
-The pass is off-budget and the four-question ceiling does not apply to it: the form is fixed,
-the answer is yes or no, and the material is already settled, so the batch reads as a
-checklist rather than as four things to absorb.
-
 ## Reporting the shape
 
 Close by naming the shape in the fields a specification is written in, so whatever consumes
 it copies rather than translates.
+
+One read of the closed set comes first: does any shipping item become redundant now that the
+rest are settled? Two that each looked proportionate as they arrived can cover the same ground
+once the set is closed, and only the closed set shows it. That is the one thing entry cannot
+check - everything else about what ships was settled as it entered, under the deletion test or
+the widening bar, and asking again is a second opinion on a decision already made.
 
 A grill settles two kinds of thing and they go to different fields. What the outcome requires
 is `outcome`, `requirements`, `non_goals`. How it is reached - every stance that named a file,
@@ -274,6 +279,11 @@ replan is free to renegotiate it.
 
 Non-goals carry across with the type they were argued under - boundary or deferral - because
 that is what decides whether reopening one is a question or a mistake.
+
+A risk carries no field of its own. It lands as a `constraint`, as a typed non-goal, or as a
+cost the shape accepts - and an accepted one names what accepting it costs, the way every
+decision names what it ruled out. A risk that lands nowhere is dropped rather than listed: an
+entry with no consequence reads as an observation, and what ships here is decisions.
 
 What each decision ruled out belongs to no field: it is the prose that ships with the shape.
 It is the most expensive thing the grill produced and the only record of the branches, so it
@@ -319,8 +329,8 @@ the conversation and a re-invocation asks nothing.
 
 The file is the report, in the same fields and the same prose: frontmatter carrying `outcome`,
 `requirements`, `non_goals` with each entry's type on the entry, `approach`, `constraints` and
-`touchpoints`, and a body carrying the ruled-out ledger, the argument behind each type, and
-where each part came from. Nothing else. A field the report does not have is one the grill did
+`touchpoints`, and a body carrying the ruled-out ledger, the cost of each accepted risk, the
+argument behind each type, and where each part came from. Nothing else. A field the report does not have is one the grill did
 not settle, and an unsettled item reaches the file as a boundary, as a deferral, or not at
 all.
 
@@ -347,8 +357,9 @@ lives in the context window.
   one with a list of options.
 - Does not let anything into the shipping set after round 1 without a widening reason, and
   does not admit one on its own reasoning. It proposes; the user decides.
-- Does not probe an item whose deletion leaves behaviour identical, or report one the probe
-  left standing.
+- Does not carry a risk the user has not ruled on, or drop a declined one without recording it.
+- Does not carry a risk that changes nothing about the shape. It lands in a field or it goes.
+- Does not name a risk axis that turned nothing up.
 - Does not invent an answer to fill a gap. A gap is reported.
 - Does not keep the pruned branches. What each decision ruled out is the record; the
   transcript is not.
@@ -359,7 +370,8 @@ lives in the context window.
 - Does not create a directory it was not given. A path that is not there is a typo.
 - Does not read a shape file back. The grill lives in the context window.
 - Does not ask what the repository already answers.
-- Does not report a determination without provenance.
+- Does not report a determination without provenance, a provisional one without the material
+  it follows from, or cite one provisional entry as provenance for another.
 - Does not report a stance that names a file or a technology as a requirement.
 - Does not search the web for approach comparison or best practice.
 - No vague qualifiers in the outcome or in what ships.
