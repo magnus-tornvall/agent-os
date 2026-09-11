@@ -3,6 +3,14 @@
 
 copyToWorktree = []
 
+# Which providers a run may read its issue from, and what a bare number means.
+# `agentflow 42` is `gh:42` here; `agentflow ado:42` is refused, because no
+# [issues.providers.ado] table declares it.
+[issues]
+default = "gh"
+
+[issues.providers.gh]
+
 [phases.implement]
 prompt = "workflows/prompts/implement.md"
 maxIterations = 1

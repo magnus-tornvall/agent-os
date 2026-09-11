@@ -1,42 +1,18 @@
 import { sh } from "./shell.ts";
 
-export type Issue = {
-  readonly number: number;
-  readonly title: string;
-  readonly body: string;
-  readonly url: string;
-  readonly state: string;
-  readonly assignees: { readonly login: string }[];
-};
-
 export type PullRequest = {
   readonly number: number;
   readonly url: string;
 };
 
 /** gh infers owner/name from the remote of the repository it runs in, and that
- *  repository is the one being driven. */
+ *  repository is the one being driven. Pull requests are GitHub's whichever
+ *  provider the issue came from: an Azure Boards work item is read and claimed
+ *  there, and answered by a pull request here. */
 export function forge(repoRoot: string) {
   const gh = (args: string[]) => sh("gh", args, repoRoot);
 
   return {
-    viewerLogin: () => gh(["api", "user", "--jq", ".login"]),
-
-    readIssue: async (number: number): Promise<Issue> => {
-      const raw = await gh([
-        "issue",
-        "view",
-        String(number),
-        "--json",
-        "number,title,body,url,state,assignees",
-      ]);
-      return JSON.parse(raw) as Issue;
-    },
-
-    claimIssue: async (number: number): Promise<void> => {
-      await gh(["issue", "edit", String(number), "--add-assignee", "@me"]);
-    },
-
     openPullRequestFor: async (branch: string): Promise<number | undefined> => {
       const raw = await gh([
         "pr",
@@ -56,10 +32,12 @@ export function forge(repoRoot: string) {
     createPullRequest: async (args: {
       readonly branch: string;
       readonly baseBranch: string;
-      readonly issue: Issue;
+      readonly title: string;
+      /** How the body refers to the issue, which only its provider can word. */
+      readonly issueReference: string;
     }): Promise<PullRequest> => {
       const body = [
-        `Closes #${args.issue.number}.`,
+        args.issueReference,
         "",
         "Opened unattended by `agentflow`. The review comments below were written",
         "by a second agent with no memory of writing the code under review.",
@@ -73,7 +51,7 @@ export function forge(repoRoot: string) {
         "--head",
         args.branch,
         "--title",
-        args.issue.title,
+        args.title,
         "--body",
         body,
       ]);

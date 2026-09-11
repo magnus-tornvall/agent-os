@@ -2,7 +2,13 @@ import { createWorktree } from "@ai-hero/sandcastle";
 import type { Worktree } from "@ai-hero/sandcastle";
 import { join } from "node:path";
 import { loadConfig, type Config } from "./config.ts";
-import { forge, type Issue, type PullRequest } from "./github.ts";
+import { forge, type PullRequest } from "./github.ts";
+import {
+  issueProviderFor,
+  parseIssueRef,
+  type Issue,
+  type IssueProvider,
+} from "./issues.ts";
 import { runPhase, type PhaseResult } from "./phases.ts";
 import { sh, succeeds } from "./shell.ts";
 
@@ -19,6 +25,7 @@ type Outcome =
 /** What every phase shares, assembled once the worktree they run in exists. */
 type Run = {
   readonly gh: Forge;
+  readonly issues: IssueProvider;
   readonly config: Config;
   readonly issue: Issue;
   readonly branch: string;
@@ -29,56 +36,72 @@ type Run = {
 };
 
 async function main(): Promise<Outcome> {
-  const issueNumber = readIssueNumber(process.argv);
   const repoRoot = await findRepositoryRoot(process.cwd());
   const config = await loadConfig(repoRoot);
-  const gh = forge(repoRoot);
-  const branch = `agent/issue-${issueNumber}`;
-  const baseBranch = await currentBranch(repoRoot);
 
-  await refuseUnlessBaseIsOnOrigin(repoRoot, baseBranch);
-  await refuseIfBranchExistsLocally(repoRoot, branch);
-  await refuseIfBranchExistsOnOrigin(repoRoot, branch);
-  await refuseIfPullRequestIsOpen(gh, branch);
-  const issue = await gh.readIssue(issueNumber);
-  refuseUnlessIssueIsOpen(issue);
-  await refuseUnlessIssueIsOursToClaim(gh, issue);
-
-  const runId = newRunId(issueNumber);
-
-  announceRun({ repoRoot, branch, baseBranch, issue });
-  await claimIssue(gh, issueNumber);
-
-  const worktree = await openWorktree({
-    repoRoot,
-    branch,
-    baseBranch,
-    copyToWorktree: config.copyToWorktree,
-  });
-  const run: Run = {
-    gh,
-    config,
-    issue,
-    branch,
-    baseBranch,
-    worktree,
-    runId,
-    logDir: join(repoRoot, ".sandcastle", "logs"),
-  };
+  /** Which provider the run reads its issue from is decided here, from the
+   *  prefix on the argument against what the config declares, and nothing
+   *  downstream knows which one it got. */
+  const { number: issueNumber, provider } = parseIssueRef(
+    process.argv[2],
+    config.issues,
+  );
+  const issues = issueProviderFor(provider, repoRoot);
 
   try {
-    const implemented = await implementIssue(run);
+    const gh = forge(repoRoot);
+    const branch = `agent/issue-${provider.prefix}-${issueNumber}`;
+    const baseBranch = await currentBranch(repoRoot);
 
-    // The gate, and the whole gate.
-    if (implemented.commits.length === 0) {
-      console.log("implement phase produced no commits — no pull request opened");
-      return "no-commits";
+    await refuseUnlessBaseIsOnOrigin(repoRoot, baseBranch);
+    await refuseIfBranchExistsLocally(repoRoot, branch);
+    await refuseIfBranchExistsOnOrigin(repoRoot, branch);
+    await refuseIfPullRequestIsOpen(gh, branch);
+    const issue = await issues.readIssue(issueNumber);
+    refuseUnlessIssueIsOpen(issue);
+    await refuseUnlessIssueIsOursToClaim(issues, issue);
+
+    const runId = newRunId(issue);
+
+    announceRun({ repoRoot, branch, baseBranch, issue });
+    await claimIssue(issues, issue);
+
+    const worktree = await openWorktree({
+      repoRoot,
+      branch,
+      baseBranch,
+      copyToWorktree: config.copyToWorktree,
+    });
+    const run: Run = {
+      gh,
+      issues,
+      config,
+      issue,
+      branch,
+      baseBranch,
+      worktree,
+      runId,
+      logDir: join(repoRoot, ".sandcastle", "logs"),
+    };
+
+    try {
+      const implemented = await implementIssue(run);
+
+      // The gate, and the whole gate.
+      if (implemented.commits.length === 0) {
+        console.log("implement phase produced no commits — no pull request opened");
+        return "no-commits";
+      }
+
+      const pr = await openPullRequest(run);
+      return await reviewAndFix(run, pr);
+    } finally {
+      await closeWorktree(worktree);
     }
-
-    const pr = await openPullRequest(run);
-    return await reviewAndFix(run, pr);
   } finally {
-    await closeWorktree(worktree);
+    /** A provider may hold a server open, and an unclosed one keeps the run
+     *  from exiting however it ended. */
+    await issues.close();
   }
 }
 
@@ -94,14 +117,6 @@ if (outcome !== "clean-review" && outcome !== "fixed") {
   process.exitCode = 1;
 }
 
-function readIssueNumber(argv: readonly string[]): number {
-  const issueNumber = Number(argv[2]);
-  if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
-    throw new Error("usage: agentflow <issue-number>");
-  }
-  return issueNumber;
-}
-
 async function findRepositoryRoot(cwd: string): Promise<string> {
   return sh("git", ["rev-parse", "--show-toplevel"], cwd).catch(() => {
     throw new Error(`${cwd} is not inside a git repository`);
@@ -112,8 +127,9 @@ async function currentBranch(repoRoot: string): Promise<string> {
   return sh("git", ["rev-parse", "--abbrev-ref", "HEAD"], repoRoot);
 }
 
-function newRunId(issueNumber: number): string {
-  return `issue-${issueNumber}-${new Date().toISOString().replaceAll(/[:.]/g, "-")}`;
+function newRunId(issue: Issue): string {
+  const when = new Date().toISOString().replaceAll(/[:.]/g, "-");
+  return `issue-${issue.ref.replace(":", "-")}-${when}`;
 }
 
 /** gh pr create fails late and confusingly when the base is local-only. */
@@ -176,24 +192,20 @@ async function refuseIfPullRequestIsOpen(
 }
 
 function refuseUnlessIssueIsOpen(issue: Issue): void {
-  if (issue.state !== "OPEN") {
-    throw new Error(
-      `issue #${issue.number} is ${issue.state.toLowerCase()}, not open`,
-    );
+  if (!issue.open) {
+    throw new Error(`issue ${issue.ref} is ${issue.state}, not open`);
   }
 }
 
 async function refuseUnlessIssueIsOursToClaim(
-  gh: Forge,
+  issues: IssueProvider,
   issue: Issue,
 ): Promise<void> {
-  const viewer = await gh.viewerLogin();
-  const otherAssignees = issue.assignees
-    .map((assignee) => assignee.login)
-    .filter((login) => login !== viewer);
-  if (otherAssignees.length > 0) {
+  const claimant = await issues.claimant();
+  const others = issue.assignees.filter((assignee) => assignee !== claimant);
+  if (others.length > 0) {
     throw new Error(
-      `issue #${issue.number} is assigned to ${otherAssignees.join(", ")}, not to ${viewer}`,
+      `issue ${issue.ref} is assigned to ${others.join(", ")}, not to ${claimant}`,
     );
   }
 }
@@ -204,14 +216,14 @@ function announceRun(args: {
   readonly baseBranch: string;
   readonly issue: Issue;
 }): void {
-  console.log(`issue #${args.issue.number}: ${args.issue.title}`);
+  console.log(`issue ${args.issue.ref}: ${args.issue.title}`);
   console.log(`repository ${args.repoRoot}`);
   console.log(`base ${args.baseBranch}, branch ${args.branch}`);
 }
 
-async function claimIssue(gh: Forge, issueNumber: number): Promise<void> {
-  await gh.claimIssue(issueNumber);
-  console.log("claimed");
+async function claimIssue(issues: IssueProvider, issue: Issue): Promise<void> {
+  await issues.claimIssue(issue.number);
+  console.log(`claimed as ${await issues.claimant()}`);
 }
 
 async function openWorktree(args: {
@@ -262,7 +274,8 @@ async function openPullRequest(run: Run): Promise<PullRequest> {
   const pr = await run.gh.createPullRequest({
     branch: run.branch,
     baseBranch: run.baseBranch,
-    issue: run.issue,
+    title: run.issue.title,
+    issueReference: run.issues.pullRequestReference(run.issue),
   });
   console.log(`pull request #${pr.number} ${pr.url}`);
   return pr;

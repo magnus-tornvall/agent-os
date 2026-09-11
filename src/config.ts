@@ -9,6 +9,14 @@ import {
   type AgentKind,
 } from "./agents.ts";
 import {
+  AZURE_DEVOPS_FIELD_KEYS,
+  ISSUE_PREFIXES,
+  type AzureDevOpsFieldMap,
+  type IssuePrefix,
+  type IssueProviderConfig,
+  type IssuesConfig,
+} from "./issues.ts";
+import {
   PHASE_DEFAULTS,
   PHASE_NAMES,
   type PhaseConfig,
@@ -20,7 +28,17 @@ export const CONFIG_FILENAME = "agentflow.toml";
 
 const MAX_ITERATIONS_CEILING = 5;
 
-const TOP_LEVEL_KEYS = ["agent", "phases", "copyToWorktree"] as const;
+const TOP_LEVEL_KEYS = ["agent", "phases", "copyToWorktree", "issues"] as const;
+
+const ISSUES_KEYS = ["default", "providers"] as const;
+
+const AZURE_DEVOPS_KEYS = [
+  "organization",
+  "project",
+  "claimant",
+  "openStates",
+  "fields",
+] as const;
 
 const PHASE_KEYS = [
   "prompt",
@@ -46,6 +64,9 @@ export type Config = {
     readonly conform: PhaseConfig;
   };
   readonly copyToWorktree: string[];
+  /** Which providers a run may read its issue from, and which one a bare issue
+   *  number means. */
+  readonly issues: IssuesConfig;
 };
 
 /** A prompt path is written relative to the config file that declares it, so a
@@ -236,6 +257,170 @@ function readReviewPhase(
   };
 }
 
+function stringArray(
+  value: unknown,
+  configPath: string,
+  path: string,
+): readonly string[] {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.some((entry) => typeof entry !== "string" || entry === "")
+  ) {
+    throw new Error(
+      `${configPath}: ${path} must be a non-empty array of non-empty strings`,
+    );
+  }
+  return value as string[];
+}
+
+/** The map is the seam's field names against the project's. Every key is
+ *  required: a missing one is not a default to fall back on, it is a field the
+ *  run cannot read, and the run says so here rather than after it has claimed
+ *  the issue. Keys and values alike are matched exactly, because an Azure
+ *  DevOps field name is case-sensitive. */
+function readFieldMap(
+  value: unknown,
+  configPath: string,
+  path: string,
+): AzureDevOpsFieldMap {
+  const table = readTable(value, `${configPath}: [${path}]`);
+  rejectUnknownKeys(table, AZURE_DEVOPS_FIELD_KEYS, configPath, path);
+
+  const missing = AZURE_DEVOPS_FIELD_KEYS.filter(
+    (key) => table[key] === undefined,
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `${configPath}: ${path} is missing the required ` +
+        `${missing.length === 1 ? "mapping" : "mappings"} ` +
+        `${missing.join(", ")}; each of ${AZURE_DEVOPS_FIELD_KEYS.join(", ")} ` +
+        `names the Azure DevOps field it is read from`,
+    );
+  }
+
+  return {
+    title: nonEmptyString(table.title, configPath, `${path}.title`),
+    body: nonEmptyString(table.body, configPath, `${path}.body`),
+    state: nonEmptyString(table.state, configPath, `${path}.state`),
+    assignedTo: nonEmptyString(
+      table.assignedTo,
+      configPath,
+      `${path}.assignedTo`,
+    ),
+  };
+}
+
+function readGithubProvider(
+  value: unknown,
+  configPath: string,
+): IssueProviderConfig {
+  const path = "issues.providers.gh";
+  const table = readTable(value, `${configPath}: [${path}]`);
+  const declared = Object.keys(table);
+  if (declared.length > 0) {
+    throw new Error(
+      `${configPath}: [${path}] takes no keys — gh reads the repository from ` +
+        `its git remote and its field names are fixed; unrecognised: ` +
+        `${declared.join(", ")}`,
+    );
+  }
+  return { prefix: "gh" };
+}
+
+function readAzureDevOpsProvider(
+  value: unknown,
+  configPath: string,
+): IssueProviderConfig {
+  const path = "issues.providers.ado";
+  const table = readTable(value, `${configPath}: [${path}]`);
+  rejectUnknownKeys(table, AZURE_DEVOPS_KEYS, configPath, path);
+  return {
+    prefix: "ado",
+    organization: nonEmptyString(
+      table.organization,
+      configPath,
+      `${path}.organization`,
+    ),
+    project: nonEmptyString(table.project, configPath, `${path}.project`),
+    claimant: nonEmptyString(table.claimant, configPath, `${path}.claimant`),
+    openStates: stringArray(
+      table.openStates,
+      configPath,
+      `${path}.openStates`,
+    ),
+    fields: readFieldMap(table.fields, configPath, `${path}.fields`),
+  };
+}
+
+/** A default is optional, but one naming a provider the repository has not
+ *  declared would only be discovered by the run it was needed for. */
+function defaultPrefix(
+  value: unknown,
+  providers: readonly IssueProviderConfig[],
+  configPath: string,
+): IssuePrefix | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const declared = providers.map((provider) => provider.prefix);
+  const match = declared.find((prefix) => prefix === value);
+  if (match === undefined) {
+    throw new Error(
+      `${configPath}: issues.default must be one of the providers this ` +
+        `repository declares: ${declared.join(", ")}`,
+    );
+  }
+  return match;
+}
+
+/** A provider is available to a run because the repository declared a table for
+ *  it, so which prefixes an invocation may use is answerable by reading the
+ *  config. */
+function readIssues(top: Record<string, unknown>, configPath: string): IssuesConfig {
+  if (top.issues === undefined) {
+    throw new Error(
+      `${configPath}: no [issues] table. A run reads its issue through a ` +
+        `provider, and a repository declares which providers it draws issues ` +
+        `from: a table under [issues.providers] for each of ` +
+        `${ISSUE_PREFIXES.join(", ")} it uses.`,
+    );
+  }
+
+  const table = readTable(top.issues, `${configPath}: [issues]`);
+  rejectUnknownKeys(table, ISSUES_KEYS, configPath, "issues");
+
+  const providerTables = readTable(
+    table.providers,
+    `${configPath}: [issues.providers]`,
+  );
+  rejectUnknownKeys(
+    providerTables,
+    ISSUE_PREFIXES,
+    configPath,
+    "issues.providers",
+  );
+
+  const providers = ISSUE_PREFIXES.filter(
+    (prefix) => providerTables[prefix] !== undefined,
+  ).map((prefix) =>
+    prefix === "gh"
+      ? readGithubProvider(providerTables.gh, configPath)
+      : readAzureDevOpsProvider(providerTables.ado, configPath),
+  );
+  if (providers.length === 0) {
+    throw new Error(
+      `${configPath}: [issues.providers] declares no provider; one table for ` +
+        `each of ${ISSUE_PREFIXES.join(", ")} this repository draws issues from`,
+    );
+  }
+
+  return {
+    providers,
+    defaultPrefix: defaultPrefix(table.default, providers, configPath),
+  };
+}
+
 export async function loadConfig(repoRoot: string): Promise<Config> {
   const configPath = join(repoRoot, CONFIG_FILENAME);
   const raw = await readFile(configPath, "utf8").catch(() => {
@@ -257,6 +442,7 @@ export async function loadConfig(repoRoot: string): Promise<Config> {
   rejectUnknownKeys(top, TOP_LEVEL_KEYS, configPath, "");
 
   const agent = agentFor(agentKind(top.agent, configPath));
+  const issues = readIssues(top, configPath);
 
   const phaseTables = readTable(top.phases, `${configPath}: [phases]`);
   rejectUnknownKeys(phaseTables, PHASE_NAMES, configPath, "phases");
@@ -289,5 +475,5 @@ export async function loadConfig(repoRoot: string): Promise<Config> {
     });
   }
 
-  return { agent, phases, copyToWorktree: copyDeclared as string[] };
+  return { agent, phases, issues, copyToWorktree: copyDeclared as string[] };
 }
